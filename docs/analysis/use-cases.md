@@ -518,7 +518,7 @@
 
 Оплата заказа выполняется через интеграцию с YooKassa. 
 Подробный сценарий описан в документе 
-[PAY-01 YooKassa Payment Integration](../integrations/yookassa/payment-use-case.md).
+[PAY-01 YooKassa Payment Integration](../integrations/yookassa/payment-use-case.md)
 
 ## UC-16 Просмотр заказов
 
