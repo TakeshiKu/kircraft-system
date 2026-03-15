@@ -516,12 +516,9 @@
 
 ## UC-15 Оплата заказа
 
-Система инициирует процесс оплаты заказа.
-
-Обработка платежа выполняется через интеграцию с YooKassa.
-
-Подробный сценарий обработки платежа описан в документе  
-[PAY-01 YooKassa Payment Use Case](../integrations/yookassa/payment-use-case.md).
+Оплата заказа выполняется через интеграцию с YooKassa. 
+Подробный сценарий описан в документе 
+[PAY-01 YooKassa Payment Integration](../integrations/yookassa/payment-use-case.md).
 
 ## UC-16 Просмотр заказов
 
