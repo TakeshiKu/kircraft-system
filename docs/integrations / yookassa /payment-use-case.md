@@ -1,4 +1,4 @@
-# YooKassa Payment Integration
+# PAY-01 YooKassa Payment Integration
 
 ## 1. Общее описание интеграции
 
