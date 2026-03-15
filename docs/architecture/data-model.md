@@ -393,29 +393,29 @@ Payment → Customer
 
 ## Общая структура модели
 
+```text
 Customer
- ├── CustomerExternalAccount
- ├── Cart
- │     └── CartItem
- │           └── CartItemSelectedValue
- ├── Order
- │     ├── OrderItem
- │     │     └── OrderItemSelectedValue
- │     ├── Payment
- │     └── OrderStatusHistory
- └── Payment
+├── CustomerExternalAccount
+├── Cart
+│   └── CartItem
+│       └── CartItemSelectedValue
+└── Order
+    ├── OrderItem
+    │   └── OrderItemSelectedValue
+    ├── Payment
+    └── OrderStatusHistory
 
 Product
- ├── ProductPhoto
- ├── CartItem
- ├── OrderItem
- └── ProductAvailableParameter
-       └── ProductAvailableParameterValue
+├── ProductPhoto
+├── CartItem
+├── OrderItem
+└── ProductAvailableParameter
+    └── ProductAvailableParameterValue
 
 ProductParameter
- ├── ProductParameterValue
- ├── CartItemSelectedValue
- └── OrderItemSelectedValue
+├── ProductParameterValue
+├── CartItemSelectedValue
+└── OrderItemSelectedValue
 
 StaffUser
- └── OrderStatusHistory
+└── OrderStatusHistory
