@@ -516,13 +516,7 @@
 
 ## UC-15 Оплата заказа
 
-Оплата заказа выполняется через интеграцию с YooKassa. 
-Подробный сценарий описан в документе 
-[PAY-01 YooKassa Payment Integration](../integrations/yookassa/payment-use-case.md)
-
-[PAY-01 YooKassa Payment Integration](https://github.com/TakeshiKu/kircraft-system/blob/main/docs/integrations/yookassa/payment-use-case.md)
-
-Оплата заказа выполняется через интеграцию с YooKassa. Подробный сценарий описан в документе [PAY-01 YooKassa Payment Integration](https://github.com/TakeshiKu/kircraft-system/blob/main/docs/integrations/yookassa/payment-use-case.md).
+Оплата заказа выполняется через интеграцию с YooKassa. Подробный сценарий описан в документе <a href="/TakeshiKu/kircraft-system/blob/main/docs/integrations/yookassa/payment-use-case.md">PAY-01 YooKassa Payment Integration</a>.
 
 ## UC-16 Просмотр заказов
 
