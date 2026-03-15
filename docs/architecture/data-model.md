@@ -406,6 +406,8 @@ Customer
     └── OrderStatusHistory
 
 Product
+├── Category
+├── Collection
 ├── ProductPhoto
 ├── CartItem
 ├── OrderItem
@@ -414,6 +416,7 @@ Product
 
 ProductParameter
 ├── ProductParameterValue
+├── ProductAvailableParameter
 ├── CartItemSelectedValue
 └── OrderItemSelectedValue
 
