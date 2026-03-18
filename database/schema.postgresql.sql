@@ -5,8 +5,8 @@ CREATE TABLE "categories" (
   "status" varchar NOT NULL,
   "sort_order" int,
   "internal_note" text,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "collections" (
@@ -18,8 +18,8 @@ CREATE TABLE "collections" (
   "status" varchar NOT NULL,
   "sort_order" int,
   "internal_note" text,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "products" (
@@ -32,8 +32,8 @@ CREATE TABLE "products" (
   "status" varchar NOT NULL,
   "sort_order" int,
   "internal_note" text,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "product_photos" (
@@ -42,16 +42,16 @@ CREATE TABLE "product_photos" (
   "photo_path" text NOT NULL,
   "is_main" boolean NOT NULL DEFAULT false,
   "sort_order" int,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "product_parameters" (
   "parameter_id" varchar PRIMARY KEY,
   "parameter_name" varchar NOT NULL,
   "active" boolean NOT NULL DEFAULT true,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "product_parameter_values" (
@@ -60,32 +60,32 @@ CREATE TABLE "product_parameter_values" (
   "value_name" varchar NOT NULL,
   "sort_order" int,
   "active" boolean NOT NULL DEFAULT true,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "product_available_parameters" (
   "product_available_parameter_id" varchar PRIMARY KEY,
   "product_id" varchar NOT NULL,
   "parameter_id" varchar NOT NULL,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "product_available_parameter_values" (
   "product_available_parameter_value_id" varchar PRIMARY KEY,
   "product_available_parameter_id" varchar NOT NULL,
   "parameter_value_id" varchar NOT NULL,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "customers" (
   "customer_id" varchar PRIMARY KEY,
   "customer_name" varchar,
   "phone" varchar,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL,
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL,
   "active" boolean NOT NULL DEFAULT true,
   "internal_note" text
 );
@@ -97,8 +97,8 @@ CREATE TABLE "customer_external_accounts" (
   "external_user_id" varchar NOT NULL,
   "external_username" varchar,
   "is_primary" boolean NOT NULL DEFAULT false,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL,
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL,
   "active" boolean NOT NULL DEFAULT true
 );
 
@@ -106,8 +106,8 @@ CREATE TABLE "carts" (
   "cart_id" varchar PRIMARY KEY,
   "customer_id" varchar NOT NULL,
   "status" varchar NOT NULL,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "cart_items" (
@@ -115,7 +115,7 @@ CREATE TABLE "cart_items" (
   "cart_id" varchar NOT NULL,
   "product_id" varchar NOT NULL,
   "quantity" int NOT NULL DEFAULT 1,
-  "created_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL
 );
 
 CREATE TABLE "cart_item_selected_values" (
@@ -123,7 +123,7 @@ CREATE TABLE "cart_item_selected_values" (
   "cart_item_id" varchar NOT NULL,
   "parameter_id" varchar NOT NULL,
   "parameter_value_id" varchar NOT NULL,
-  "created_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL
 );
 
 CREATE TABLE "orders" (
@@ -140,9 +140,9 @@ CREATE TABLE "orders" (
   "items_total" decimal(10,2) NOT NULL,
   "delivery_price" decimal(10,2) NOT NULL DEFAULT 0,
   "total_price" decimal(10,2) NOT NULL,
-  "paid_at" datetime,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "paid_at" timestamp,
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "order_items" (
@@ -152,7 +152,7 @@ CREATE TABLE "order_items" (
   "product_name_snapshot" varchar NOT NULL,
   "price_snapshot" decimal(10,2) NOT NULL,
   "quantity" int NOT NULL DEFAULT 1,
-  "created_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL
 );
 
 CREATE TABLE "order_item_selected_values" (
@@ -162,7 +162,7 @@ CREATE TABLE "order_item_selected_values" (
   "parameter_value_id" varchar NOT NULL,
   "parameter_name_snapshot" varchar NOT NULL,
   "value_name_snapshot" varchar NOT NULL,
-  "created_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL
 );
 
 CREATE TABLE "order_deliveries" (
@@ -180,10 +180,10 @@ CREATE TABLE "order_deliveries" (
   "delivery_price" decimal(10,2) NOT NULL DEFAULT 0,
   "delivery_currency" char(3) NOT NULL DEFAULT 'RUB',
   "provider_payload" text,
-  "calculated_at" datetime,
-  "confirmed_at" datetime,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "calculated_at" timestamp,
+  "confirmed_at" timestamp,
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "order_clarifications" (
@@ -193,8 +193,8 @@ CREATE TABLE "order_clarifications" (
   "clarification_type" varchar NOT NULL,
   "comment" text NOT NULL,
   "status" varchar NOT NULL,
-  "created_at" datetime NOT NULL,
-  "resolved_at" datetime
+  "created_at" timestamp NOT NULL,
+  "resolved_at" timestamp
 );
 
 CREATE TABLE "staff_users" (
@@ -203,8 +203,8 @@ CREATE TABLE "staff_users" (
   "role" varchar NOT NULL,
   "telegram_user_id" varchar,
   "active" boolean NOT NULL DEFAULT true,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL
 );
 
 CREATE TABLE "order_status_history" (
@@ -212,7 +212,7 @@ CREATE TABLE "order_status_history" (
   "order_id" varchar NOT NULL,
   "from_status" varchar,
   "to_status" varchar NOT NULL,
-  "changed_at" datetime NOT NULL,
+  "changed_at" timestamp NOT NULL,
   "changed_by_staff_user_id" varchar,
   "comment" text
 );
@@ -234,14 +234,14 @@ CREATE TABLE "payments" (
   "confirmation_url" text,
   "provider_metadata" text,
   "cancellation_details" text,
-  "captured_at" datetime,
-  "expires_at" datetime,
-  "paid_at" datetime,
+  "captured_at" timestamp,
+  "expires_at" timestamp,
+  "paid_at" timestamp,
   "payment_attempt_id" varchar UNIQUE NOT NULL,
-  "created_at" datetime NOT NULL,
-  "updated_at" datetime NOT NULL,
-  "last_status_check_at" datetime,
-  "last_webhook_at" datetime,
+  "created_at" timestamp NOT NULL,
+  "updated_at" timestamp NOT NULL,
+  "last_status_check_at" timestamp,
+  "last_webhook_at" timestamp,
   "last_status_source" varchar,
   "provider_response_raw" text
 );
