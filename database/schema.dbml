@@ -5,8 +5,8 @@ Table categories {
   status varchar [not null, note: 'Статус категории: draft/active/archived']
   sort_order int [note: 'Порядок отображения']
   internal_note text [note: 'Внутренняя заметка']
-  created_at datetime [not null, note: 'Дата создания категории']
-  updated_at datetime [not null, note: 'Дата последнего изменения категории']
+  created_at timestamp [not null, note: 'Дата создания категории']
+  updated_at timestamp [not null, note: 'Дата последнего изменения категории']
 }
 
 Table collections {
@@ -18,8 +18,8 @@ Table collections {
   status varchar [not null, note: 'Статус коллекции: draft/active/archived']
   sort_order int [note: 'Порядок отображения']
   internal_note text [note: 'Внутренняя заметка']
-  created_at datetime [not null, note: 'Дата создания коллекции']
-  updated_at datetime [not null, note: 'Дата последнего изменения коллекции']
+  created_at timestamp [not null, note: 'Дата создания коллекции']
+  updated_at timestamp [not null, note: 'Дата последнего изменения коллекции']
 }
 
 Table products {
@@ -32,8 +32,8 @@ Table products {
   status varchar [not null, note: 'Статус товара: draft/active/archived']
   sort_order int [note: 'Порядок отображения']
   internal_note text [note: 'Внутренняя заметка']
-  created_at datetime [not null, note: 'Дата создания товара']
-  updated_at datetime [not null, note: 'Дата последнего изменения товара']
+  created_at timestamp [not null, note: 'Дата создания товара']
+  updated_at timestamp [not null, note: 'Дата последнего изменения товара']
 }
 
 Table product_photos {
@@ -42,16 +42,16 @@ Table product_photos {
   photo_path text [not null, note: 'Путь к фотографии']
   is_main boolean [not null, default: false, note: 'Признак основной фотографии']
   sort_order int [note: 'Порядок отображения']
-  created_at datetime [not null, note: 'Дата добавления фотографии']
-  updated_at datetime [not null, note: 'Дата последнего изменения фотографии']
+  created_at timestamp [not null, note: 'Дата добавления фотографии']
+  updated_at timestamp [not null, note: 'Дата последнего изменения фотографии']
 }
 
 Table product_parameters {
   parameter_id varchar [pk, note: 'Уникальный идентификатор параметра']
   parameter_name varchar [not null, note: 'Название параметра']
   active boolean [not null, default: true, note: 'Признак активности']
-  created_at datetime [not null, note: 'Дата создания параметра']
-  updated_at datetime [not null, note: 'Дата последнего изменения параметра']
+  created_at timestamp [not null, note: 'Дата создания параметра']
+  updated_at timestamp [not null, note: 'Дата последнего изменения параметра']
 }
 
 Table product_parameter_values {
@@ -60,32 +60,32 @@ Table product_parameter_values {
   value_name varchar [not null, note: 'Отображаемое значение']
   sort_order int [note: 'Порядок отображения']
   active boolean [not null, default: true, note: 'Признак активности']
-  created_at datetime [not null, note: 'Дата создания значения параметра']
-  updated_at datetime [not null, note: 'Дата последнего изменения значения параметра']
+  created_at timestamp [not null, note: 'Дата создания значения параметра']
+  updated_at timestamp [not null, note: 'Дата последнего изменения значения параметра']
 }
 
 Table product_available_parameters {
   product_available_parameter_id varchar [pk, note: 'Уникальный идентификатор связи товара и параметра']
   product_id varchar [not null, note: 'Ссылка на товар']
   parameter_id varchar [not null, note: 'Ссылка на параметр']
-  created_at datetime [not null, note: 'Дата создания связи товара и параметра']
-  updated_at datetime [not null, note: 'Дата последнего изменения связи товара и параметра']
+  created_at timestamp [not null, note: 'Дата создания связи товара и параметра']
+  updated_at timestamp [not null, note: 'Дата последнего изменения связи товара и параметра']
 }
 
 Table product_available_parameter_values {
   product_available_parameter_value_id varchar [pk, note: 'Уникальный идентификатор допустимого значения параметра для товара']
   product_available_parameter_id varchar [not null, note: 'Ссылка на связь товара и параметра']
   parameter_value_id varchar [not null, note: 'Ссылка на допустимое значение параметра']
-  created_at datetime [not null, note: 'Дата создания допустимого значения параметра для товара']
-  updated_at datetime [not null, note: 'Дата последнего изменения допустимого значения параметра для товара']
+  created_at timestamp [not null, note: 'Дата создания допустимого значения параметра для товара']
+  updated_at timestamp [not null, note: 'Дата последнего изменения допустимого значения параметра для товара']
 }
 
 Table customers {
   customer_id varchar [pk, note: 'Уникальный внутренний идентификатор клиента']
   customer_name varchar [note: 'Актуальное имя клиента']
   phone varchar [note: 'Актуальный номер телефона']
-  created_at datetime [not null, note: 'Дата создания записи клиента']
-  updated_at datetime [not null, note: 'Дата последнего изменения записи клиента']
+  created_at timestamp [not null, note: 'Дата создания записи клиента']
+  updated_at timestamp [not null, note: 'Дата последнего изменения записи клиента']
   active boolean [not null, default: true, note: 'Признак активности клиента']
   internal_note text [note: 'Внутренняя заметка']
 }
@@ -97,8 +97,8 @@ Table customer_external_accounts {
   external_user_id varchar [not null, note: 'Идентификатор пользователя во внешнем канале']
   external_username varchar [note: 'Имя пользователя, логин или ник во внешнем канале']
   is_primary boolean [not null, default: false, note: 'Признак основной учетной записи клиента в канале']
-  created_at datetime [not null, note: 'Дата создания внешней учетной записи']
-  updated_at datetime [not null, note: 'Дата последнего изменения внешней учетной записи']
+  created_at timestamp [not null, note: 'Дата создания внешней учетной записи']
+  updated_at timestamp [not null, note: 'Дата последнего изменения внешней учетной записи']
   active boolean [not null, default: true, note: 'Признак активности внешней учетной записи']
 }
 
@@ -106,8 +106,8 @@ Table carts {
   cart_id varchar [pk, note: 'Уникальный идентификатор корзины']
   customer_id varchar [not null, note: 'Ссылка на клиента']
   status varchar [not null, note: 'Статус корзины: active/converted/abandoned']
-  created_at datetime [not null, note: 'Дата создания корзины']
-  updated_at datetime [not null, note: 'Дата последнего изменения корзины']
+  created_at timestamp [not null, note: 'Дата создания корзины']
+  updated_at timestamp [not null, note: 'Дата последнего изменения корзины']
 }
 
 Table cart_items {
@@ -115,7 +115,7 @@ Table cart_items {
   cart_id varchar [not null, note: 'Ссылка на корзину']
   product_id varchar [not null, note: 'Ссылка на товар']
   quantity int [not null, default: 1, note: 'Количество']
-  created_at datetime [not null, note: 'Дата добавления товара в корзину']
+  created_at timestamp [not null, note: 'Дата добавления товара в корзину']
 }
 
 Table cart_item_selected_values {
@@ -123,7 +123,7 @@ Table cart_item_selected_values {
   cart_item_id varchar [not null, note: 'Ссылка на позицию корзины']
   parameter_id varchar [not null, note: 'Ссылка на параметр']
   parameter_value_id varchar [not null, note: 'Ссылка на выбранное значение параметра']
-  created_at datetime [not null, note: 'Дата выбора значения параметра']
+  created_at timestamp [not null, note: 'Дата выбора значения параметра']
 }
 
 Table orders {
@@ -140,9 +140,9 @@ Table orders {
   items_total decimal(10,2) [not null, note: 'Сумма товаров в заказе']
   delivery_price decimal(10,2) [not null, default: 0, note: 'Стоимость доставки (snapshot, дублирует order_deliveries)']
   total_price decimal(10,2) [not null, note: 'Итоговая сумма заказа (items + delivery)']
-  paid_at datetime [note: 'Дата и время подтвержденной успешной оплаты заказа']
-  created_at datetime [not null, note: 'Дата создания заказа']
-  updated_at datetime [not null, note: 'Дата последнего изменения заказа']
+  paid_at timestamp [note: 'Дата и время подтвержденной успешной оплаты заказа']
+  created_at timestamp [not null, note: 'Дата создания заказа']
+  updated_at timestamp [not null, note: 'Дата последнего изменения заказа']
 }
 
 Table order_items {
@@ -152,7 +152,7 @@ Table order_items {
   product_name_snapshot varchar [not null, note: 'Название товара на момент заказа']
   price_snapshot decimal(10,2) [not null, note: 'Цена товара за единицу на момент заказа']
   quantity int [not null, default: 1, note: 'Количество']
-  created_at datetime [not null, note: 'Дата создания позиции заказа']
+  created_at timestamp [not null, note: 'Дата создания позиции заказа']
 }
 
 Table order_item_selected_values {
@@ -162,7 +162,7 @@ Table order_item_selected_values {
   parameter_value_id varchar [not null, note: 'Ссылка на выбранное значение параметра']
   parameter_name_snapshot varchar [not null, note: 'Название параметра на момент заказа']
   value_name_snapshot varchar [not null, note: 'Значение параметра на момент заказа']
-  created_at datetime [not null, note: 'Дата фиксации выбранного значения параметра в заказе']
+  created_at timestamp [not null, note: 'Дата фиксации выбранного значения параметра в заказе']
 }
 
 Table order_deliveries {
@@ -180,10 +180,10 @@ Table order_deliveries {
   delivery_price decimal(10,2) [not null, default: 0, note: 'Стоимость доставки']
   delivery_currency char(3) [not null, default: 'RUB', note: 'Валюта доставки']
   provider_payload text [note: 'Сырой или нормализованный ответ провайдера доставки']
-  calculated_at datetime [note: 'Дата и время расчета доставки']
-  confirmed_at datetime [note: 'Дата и время фиксации доставки в заказе']
-  created_at datetime [not null, note: 'Дата создания записи доставки']
-  updated_at datetime [not null, note: 'Дата последнего изменения записи доставки']
+  calculated_at timestamp [note: 'Дата и время расчета доставки']
+  confirmed_at timestamp [note: 'Дата и время фиксации доставки в заказе']
+  created_at timestamp [not null, note: 'Дата создания записи доставки']
+  updated_at timestamp [not null, note: 'Дата последнего изменения записи доставки']
 }
 
 Table order_clarifications {
@@ -193,8 +193,8 @@ Table order_clarifications {
   clarification_type varchar [not null, note: 'Тип уточнения: product_params/delivery/contact/other']
   comment text [not null, note: 'Текст уточнения']
   status varchar [not null, note: 'Статус уточнения: open/resolved/cancelled']
-  created_at datetime [not null, note: 'Дата создания запроса']
-  resolved_at datetime [note: 'Дата закрытия запроса']
+  created_at timestamp [not null, note: 'Дата создания запроса']
+  resolved_at timestamp [note: 'Дата закрытия запроса']
 }
 
 Table staff_users {
@@ -203,8 +203,8 @@ Table staff_users {
   role varchar [not null, note: 'Роль: master/manager/admin']
   telegram_user_id varchar [note: 'Идентификатор пользователя в Telegram']
   active boolean [not null, default: true, note: 'Признак активности']
-  created_at datetime [not null, note: 'Дата создания пользователя']
-  updated_at datetime [not null, note: 'Дата последнего изменения пользователя']
+  created_at timestamp [not null, note: 'Дата создания пользователя']
+  updated_at timestamp [not null, note: 'Дата последнего изменения пользователя']
 }
 
 Table order_status_history {
@@ -212,7 +212,7 @@ Table order_status_history {
   order_id varchar [not null, note: 'Ссылка на заказ']
   from_status varchar [note: 'Предыдущий статус заказа']
   to_status varchar [not null, note: 'Новый статус заказа']
-  changed_at datetime [not null, note: 'Дата и время изменения статуса']
+  changed_at timestamp [not null, note: 'Дата и время изменения статуса']
   changed_by_staff_user_id varchar [note: 'Ссылка на внутреннего пользователя, изменившего статус']
   comment text [note: 'Комментарий к изменению статуса']
 }
@@ -234,14 +234,14 @@ Table payments {
   confirmation_url text [note: 'URL страницы оплаты из YooKassa']
   provider_metadata text [note: 'Metadata YooKassa']
   cancellation_details text [note: 'Детали отмены платежа']
-  captured_at datetime [note: 'Время подтверждения платежа в YooKassa']
-  expires_at datetime [note: 'Время истечения платежа']
-  paid_at datetime [note: 'Внутреннее время признания оплаты успешной']
+  captured_at timestamp [note: 'Время подтверждения платежа в YooKassa']
+  expires_at timestamp [note: 'Время истечения платежа']
+  paid_at timestamp [note: 'Внутреннее время признания оплаты успешной']
   payment_attempt_id varchar [not null, unique, note: 'Бизнес-идентификатор попытки оплаты, общий для внутренней логики и передачи в metadata YooKassa']
-  created_at datetime [not null, note: 'Дата создания записи']
-  updated_at datetime [not null, note: 'Дата последнего обновления']
-  last_status_check_at datetime [note: 'Время последней проверки статуса']
-  last_webhook_at datetime [note: 'Время последнего webhook']
+  created_at timestamp [not null, note: 'Дата создания записи']
+  updated_at timestamp [not null, note: 'Дата последнего обновления']
+  last_status_check_at timestamp [note: 'Время последней проверки статуса']
+  last_webhook_at timestamp [note: 'Время последнего webhook']
   last_status_source varchar [note: 'Источник обновления статуса']
   provider_response_raw text [note: 'Сырой ответ YooKassa']
 }
