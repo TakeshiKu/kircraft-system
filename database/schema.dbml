@@ -93,7 +93,7 @@ Table customers {
 Table customer_external_accounts {
   customer_external_account_id varchar [pk, note: 'Уникальный идентификатор внешней учетной записи клиента']
   customer_id varchar [not null, note: 'Ссылка на клиента']
-  provider varchar [not null, note: 'Канал идентификации клиента: telegram/web/mini_app/max/other']
+ provider varchar [not null, note: 'Канал идентификации клиента: telegram/web/mini_app/max/vk/other']
   external_user_id varchar [not null, note: 'Идентификатор пользователя во внешнем канале']
   external_username varchar [note: 'Имя пользователя, логин или ник во внешнем канале']
   is_primary boolean [not null, default: false, note: 'Признак основной учетной записи клиента в канале']
@@ -130,16 +130,16 @@ Table orders {
   order_id varchar [pk, note: 'Уникальный идентификатор заказа']
   customer_id varchar [not null, note: 'Ссылка на клиента']
   cart_id varchar [note: 'Ссылка на корзину, из которой был создан заказ']
-  source_channel varchar [note: 'Канал создания заказа: telegram/web/mini_app/max/other']
+  source_channel varchar [note: 'Канал создания заказа: telegram/web/mini_app/max/vk/other']
   customer_name_snapshot varchar [not null, note: 'Имя клиента на момент оформления заказа']
   phone_snapshot varchar [not null, note: 'Телефон клиента на момент оформления заказа']
-  status varchar [not null, note: 'Статус заказа: created/awaiting_payment/confirmed/needs_clarification/paid/in_progress/shipped/cancelled']
-  city varchar [not null, note: 'Город доставки']
-  delivery_address text [not null, note: 'Адрес доставки']
+  status varchar [not null, note: 'Статус заказа: created/awaiting_payment/needs_clarification/paid/in_progress/shipped/cancelled/rejected']
+  city varchar [not null, note: 'Город доставки (snapshot)']
+  delivery_address text [note: 'Адрес доставки (legacy/snapshot, необязателен)']
   comment text [note: 'Комментарий к заказу']
   items_total decimal(10,2) [not null, note: 'Сумма товаров в заказе']
-  delivery_price decimal(10,2) [not null, default: 0, note: 'Стоимость доставки']
-  total_price decimal(10,2) [not null, note: 'Итоговая сумма заказа']
+  delivery_price decimal(10,2) [not null, default: 0, note: 'Стоимость доставки (snapshot, дублирует order_deliveries)']
+  total_price decimal(10,2) [not null, note: 'Итоговая сумма заказа (items + delivery)']
   paid_at datetime [note: 'Дата и время подтвержденной успешной оплаты заказа']
   created_at datetime [not null, note: 'Дата создания заказа']
   updated_at datetime [not null, note: 'Дата последнего изменения заказа']
@@ -165,6 +165,38 @@ Table order_item_selected_values {
   created_at datetime [not null, note: 'Дата фиксации выбранного значения параметра в заказе']
 }
 
+Table order_deliveries {
+  order_delivery_id varchar [pk, note: 'Уникальный идентификатор доставки заказа']
+  order_id varchar [not null, unique, note: 'Ссылка на заказ']
+  delivery_provider varchar [not null, note: 'Провайдер доставки: cdek/other']
+  delivery_type varchar [not null, note: 'Тип доставки: pickup_point/courier/other']
+  status varchar [not null, note: 'Статус доставки: calculated/confirmed/needs_clarification/cancelled']
+  city varchar [not null, note: 'Город доставки']
+  pickup_point_id varchar [note: 'Идентификатор ПВЗ во внешней системе']
+  pickup_point_name varchar [note: 'Название ПВЗ']
+  pickup_point_address text [note: 'Адрес ПВЗ']
+  delivery_eta_min_days int [note: 'Минимальный срок доставки в днях']
+  delivery_eta_max_days int [note: 'Максимальный срок доставки в днях']
+  delivery_price decimal(10,2) [not null, default: 0, note: 'Стоимость доставки']
+  delivery_currency char(3) [not null, default: 'RUB', note: 'Валюта доставки']
+  provider_payload text [note: 'Сырой или нормализованный ответ провайдера доставки']
+  calculated_at datetime [note: 'Дата и время расчета доставки']
+  confirmed_at datetime [note: 'Дата и время фиксации доставки в заказе']
+  created_at datetime [not null, note: 'Дата создания записи доставки']
+  updated_at datetime [not null, note: 'Дата последнего изменения записи доставки']
+}
+
+Table order_clarifications {
+  order_clarification_id varchar [pk, note: 'Уникальный идентификатор запроса на уточнение']
+  order_id varchar [not null, note: 'Ссылка на заказ']
+  requested_by_staff_user_id varchar [note: 'Кто запросил уточнение']
+  clarification_type varchar [not null, note: 'Тип уточнения: product_params/delivery/contact/other']
+  comment text [not null, note: 'Текст уточнения']
+  status varchar [not null, note: 'Статус уточнения: open/resolved/cancelled']
+  created_at datetime [not null, note: 'Дата создания запроса']
+  resolved_at datetime [note: 'Дата закрытия запроса']
+}
+
 Table staff_users {
   staff_user_id varchar [pk, note: 'Уникальный идентификатор внутреннего пользователя']
   staff_name varchar [not null, note: 'Имя сотрудника']
@@ -184,11 +216,12 @@ Table order_status_history {
   changed_by_staff_user_id varchar [note: 'Ссылка на внутреннего пользователя, изменившего статус']
   comment text [note: 'Комментарий к изменению статуса']
 }
+
 Table payments {
-  payment_id varchar [pk, note: 'Внутренний идентификатор попытки оплаты в Kircraft']
+  payment_id varchar [pk, note: 'Технический первичный ключ записи платежа в Kircraft']
   order_id varchar [not null, note: 'Ссылка на заказ']
   customer_id varchar [not null, note: 'Ссылка на клиента, инициировавшего оплату']
-  amount decimal(10,2) [not null, note: 'Сумма платежа']
+  amount decimal(10,2) [not null, note: 'Итоговая сумма платежа, включая стоимость товаров и доставки']
   currency char(3) [not null, note: 'Код валюты ISO 4217, например RUB']
   status varchar [not null, note: 'Внутренний статус попытки оплаты: created/pending/succeeded/canceled/error']
   provider_status varchar [note: 'Статус платежа в YooKassa']
@@ -204,6 +237,7 @@ Table payments {
   captured_at datetime [note: 'Время подтверждения платежа в YooKassa']
   expires_at datetime [note: 'Время истечения платежа']
   paid_at datetime [note: 'Внутреннее время признания оплаты успешной']
+  payment_attempt_id varchar [not null, unique, note: 'Бизнес-идентификатор попытки оплаты, общий для внутренней логики и передачи в metadata YooKassa']
   created_at datetime [not null, note: 'Дата создания записи']
   updated_at datetime [not null, note: 'Дата последнего обновления']
   last_status_check_at datetime [note: 'Время последней проверки статуса']
@@ -237,6 +271,9 @@ Ref: order_items.product_id > products.product_id
 Ref: order_item_selected_values.order_item_id > order_items.order_item_id
 Ref: order_item_selected_values.parameter_id > product_parameters.parameter_id
 Ref: order_item_selected_values.parameter_value_id > product_parameter_values.parameter_value_id
+Ref: order_deliveries.order_id > orders.order_id
+Ref: order_clarifications.order_id > orders.order_id
+Ref: order_clarifications.requested_by_staff_user_id > staff_users.staff_user_id
 
 Ref: order_status_history.order_id > orders.order_id
 Ref: order_status_history.changed_by_staff_user_id > staff_users.staff_user_id
