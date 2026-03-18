@@ -93,7 +93,7 @@ Table customers {
 Table customer_external_accounts {
   customer_external_account_id varchar [pk, note: 'Уникальный идентификатор внешней учетной записи клиента']
   customer_id varchar [not null, note: 'Ссылка на клиента']
- provider varchar [not null, note: 'Канал идентификации клиента: telegram/web/mini_app/max/vk/other']
+  provider varchar [not null, note: 'Канал идентификации клиента: telegram/web/mini_app/max/vk/other']
   external_user_id varchar [not null, note: 'Идентификатор пользователя во внешнем канале']
   external_username varchar [note: 'Имя пользователя, логин или ник во внешнем канале']
   is_primary boolean [not null, default: false, note: 'Признак основной учетной записи клиента в канале']
