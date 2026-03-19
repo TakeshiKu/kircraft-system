@@ -1,0 +1,6 @@
+# Кэш/артефакты Structurizr (генерируются автоматически)
+.structurizr/
+# Экспорт из Structurizr UI (источник истины — workspace.dsl)
+workspace.json
+# Экспорт из UI — опционально хранить в репозитории
+# diagrams/*.png
