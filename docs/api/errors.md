@@ -279,6 +279,13 @@
 - `payment_provider_error` — ошибка взаимодействия с платежным провайдером (HTTP 502; используется при `POST /payments`, `GET /payments/{payment_id}` и обработке webhook)
 - `payment_provider_unavailable` — платежный сервис временно недоступен (HTTP 503; используется при `POST /payments`, `GET /payments/{payment_id}` и обработке webhook)
 
+Ниже перечислены дополнительные коды ошибок, которые используются в `docs/api/modules/delivery-api.md` (частичный перечень).
+
+- `delivery_not_available` — по указанному городу нет доступных вариантов доставки (HTTP 422)
+- `pickup_point_not_found` — ПВЗ не найден или не относится к текущему расчету (HTTP 404)
+- `delivery_not_calculated` — попытка выбора ПВЗ без предварительного расчета (HTTP 409)
+- `delivery_not_selected` — доставка не выбрана (HTTP 422)
+
 ---
 
 ## 6. Правила использования ошибок
