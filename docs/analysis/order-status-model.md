@@ -64,6 +64,44 @@ awaiting_payment → cancelled
 
 ---
 
+# Допустимые переходы статусов
+
+В рамках текущей логики проекта допустимы следующие переходы:
+
+- `awaiting_payment -> paid`
+- `awaiting_payment -> needs_clarification`
+- `awaiting_payment -> cancelled`
+- `awaiting_payment -> rejected`
+- `needs_clarification -> awaiting_payment`
+- `needs_clarification -> cancelled`
+- `needs_clarification -> rejected`
+- `paid -> in_progress`
+- `in_progress -> shipped`
+
+Переходы, не перечисленные в этом разделе, в рамках клиентского и базового operational flow не считаются допустимыми.
+
+---
+
+# Инициаторы переходов
+
+- `awaiting_payment -> paid` — система (по подтвержденному результату оплаты от платежного провайдера: webhook/результат оплаты)
+- `awaiting_payment -> cancelled` — клиент (отмена заказа); система (автоотмена по таймауту оплаты)
+- `awaiting_payment -> needs_clarification` — мастер/админ
+- `awaiting_payment -> rejected` — мастер/админ
+- `needs_clarification -> awaiting_payment` — система (после получения и фиксации уточнений)
+- `needs_clarification -> cancelled` — клиент
+- `needs_clarification -> rejected` — мастер/админ
+- `paid -> in_progress` — мастер/админ
+- `in_progress -> shipped` — мастер/админ
+
+---
+
+# Связь со статусами оплаты
+
+- Заказ переводится в `paid` только после подтвержденного успешного результата оплаты.
+- Неуспешная или отмененная попытка оплаты не переводит заказ в `paid`.
+- Поздний успешный результат по устаревшей попытке оплаты не должен автоматически менять статус заказа.
+
 # Действия пользователя (не являются статусами)
 
 Следующие действия инициируют переходы между статусами:
