@@ -196,6 +196,7 @@ ProductAvailableParameterValue → ProductParameterValue
 
 - имя
 - телефон
+- email (необязательное поле)
 - служебную заметку
 
 Один клиент может иметь:
@@ -311,6 +312,12 @@ CartItemSelectedValue → ProductParameterValue
 
 В заказе используются snapshot-поля,
 чтобы сохранить состояние данных на момент оформления.
+
+В snapshot-данные клиента в заказе входят:
+
+- имя (`customer_name_snapshot`)
+- телефон (`phone_snapshot`)
+- email (`email_snapshot`, необязательное поле)
 
 Связи:
 

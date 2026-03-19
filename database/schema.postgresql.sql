@@ -84,6 +84,7 @@ CREATE TABLE "customers" (
   "customer_id" varchar PRIMARY KEY,
   "customer_name" varchar,
   "phone" varchar,
+  "email" varchar,
   "created_at" timestamp NOT NULL,
   "updated_at" timestamp NOT NULL,
   "active" boolean NOT NULL DEFAULT true,
@@ -133,6 +134,7 @@ CREATE TABLE "orders" (
   "source_channel" varchar,
   "customer_name_snapshot" varchar NOT NULL,
   "phone_snapshot" varchar NOT NULL,
+  "email_snapshot" varchar,
   "status" varchar NOT NULL,
   "city" varchar NOT NULL,
   "delivery_address" text,
@@ -368,6 +370,8 @@ COMMENT ON COLUMN "customers"."customer_name" IS 'Актуальное имя к
 
 COMMENT ON COLUMN "customers"."phone" IS 'Актуальный номер телефона';
 
+COMMENT ON COLUMN "customers"."email" IS 'Актуальный email клиента (необязательное поле)';
+
 COMMENT ON COLUMN "customers"."created_at" IS 'Дата создания записи клиента';
 
 COMMENT ON COLUMN "customers"."updated_at" IS 'Дата последнего изменения записи клиента';
@@ -435,6 +439,8 @@ COMMENT ON COLUMN "orders"."source_channel" IS 'Канал создания за
 COMMENT ON COLUMN "orders"."customer_name_snapshot" IS 'Имя клиента на момент оформления заказа';
 
 COMMENT ON COLUMN "orders"."phone_snapshot" IS 'Телефон клиента на момент оформления заказа';
+
+COMMENT ON COLUMN "orders"."email_snapshot" IS 'Email клиента на момент оформления заказа (необязательное поле)';
 
 COMMENT ON COLUMN "orders"."status" IS 'Статус заказа: created/awaiting_payment/needs_clarification/paid/in_progress/shipped/cancelled/rejected';
 
