@@ -61,13 +61,13 @@
 
 - `orders.status` допускает только:
   - `created`
-  - `awaiting_payment`
-  - `confirmed`
   - `needs_clarification`
+  - `awaiting_payment`
   - `paid`
   - `in_progress`
   - `shipped`
   - `cancelled`
+  - `rejected`
 
 ### Внутренние пользователи
 
