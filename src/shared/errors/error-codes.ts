@@ -24,5 +24,7 @@ export const ErrorCodes = {
   PICKUP_POINT_NOT_FOUND: "pickup_point_not_found",
   DELIVERY_NOT_CALCULATED: "delivery_not_calculated",
   DELIVERY_NOT_SELECTED: "delivery_not_selected",
+  DELIVERY_CALCULATION_FAILED: "delivery_calculation_failed",
   INTERNAL_ERROR: "internal_error",
+  NOT_IMPLEMENTED: "not_implemented",
 } as const;

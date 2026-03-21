@@ -1,5 +1,4 @@
 import type { Logger } from "../../shared/logger/logger.js";
-import { CdekHttpClient } from "./cdek.client.js";
 import type { MoneyMinor } from "../../shared/types/money.js";
 
 /** Нормализованная опция ПВЗ для DeliveryService (не DTO API). */
@@ -14,25 +13,36 @@ export type CdekDeliveryOptionNormalized = {
 };
 
 /**
- * Адаптер CDEK: вызывает client, маппит ответ провайдера в структуры домена доставки.
- * Cart/Delivery сервисы зависят от этого типа, а не от HTTP-клиента напрямую.
+ * Адаптер CDEK (MVP stub): без HTTP-клиента, фиксированный список опций.
  */
 export class CdekService {
-  constructor(
-    private readonly client: CdekHttpClient,
-    private readonly log: Logger,
-  ) {}
+  constructor(private readonly log: Logger) {}
 
-  async listPickupOptions(input: {
+  async listPickupOptions(_input: {
     city: string;
     shipmentParamsFromCart: Record<string, unknown>;
   }): Promise<CdekDeliveryOptionNormalized[]> {
-    void input;
-    await this.client.fetchPickupPointsAndTariffs({
-      city: input.city,
-      shipment: input.shipmentParamsFromCart,
-    });
-    this.log.debug("CdekService.listPickupOptions (stub)");
-    return [];
+    void _input;
+    this.log.debug("CdekService.listPickupOptions (stub, no HTTP)");
+    return [
+      {
+        pickupPointId: "PVZ_1",
+        pickupPointName: "ПВЗ СДЭК 1",
+        pickupPointAddress: "Москва, ул. Пример, 1",
+        deliveryEtaMinDays: 2,
+        deliveryEtaMaxDays: 4,
+        deliveryPriceMinor: 25000,
+        deliveryCurrency: "RUB",
+      },
+      {
+        pickupPointId: "PVZ_2",
+        pickupPointName: "ПВЗ СДЭК 2",
+        pickupPointAddress: "Москва, ул. Пример, 2",
+        deliveryEtaMinDays: 3,
+        deliveryEtaMaxDays: 5,
+        deliveryPriceMinor: 30000,
+        deliveryCurrency: "RUB",
+      },
+    ];
   }
 }

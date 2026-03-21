@@ -29,7 +29,7 @@ import {
   PaymentWebhookService,
   registerPaymentRoutes,
 } from "./modules/payment/index.js";
-import { CdekHttpClient, CdekService } from "./integrations/cdek/index.js";
+import { CdekService } from "./integrations/cdek/index.js";
 import {
   YooKassaHttpClient,
   YooKassaService,
@@ -48,8 +48,7 @@ export function buildApp(config: AppConfig, log: Logger) {
   const userService = new UserService(pool, users);
   void userService;
 
-  const cdekClient = new CdekHttpClient(config.cdek, log);
-  const cdekService = new CdekService(cdekClient, log);
+  const cdekService = new CdekService(log);
   const ykClient = new YooKassaHttpClient(config.yookassa, log);
   const ykService = new YooKassaService(ykClient, log);
 
@@ -59,6 +58,7 @@ export function buildApp(config: AppConfig, log: Logger) {
     carts,
     checkoutDelivery,
     cdekService,
+    log,
   );
   const orderService = new OrderService(pool, orders, carts, checkoutDelivery);
   const paymentService = new PaymentService(pool, payments, orders, ykService);
