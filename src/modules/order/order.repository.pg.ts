@@ -12,9 +12,20 @@ import type {
   OrderDetailPaymentSnapshot,
   OrderDetailSnapshot,
 } from "./order-detail.dto.js";
+import type { OrderListItemSnapshot } from "./order-list.dto.js";
 
 function numMinor(v: string | number): number {
   const n = typeof v === "string" ? Number(v) : v;
+  return Number.isFinite(n) ? Math.trunc(n) : 0;
+}
+
+function numQty(v: string | number | bigint): number {
+  const n =
+    typeof v === "bigint"
+      ? Number(v)
+      : typeof v === "string"
+        ? Number(v)
+        : v;
   return Number.isFinite(n) ? Math.trunc(n) : 0;
 }
 
@@ -250,13 +261,55 @@ export class OrderRepositoryPg implements OrderRepository {
   }
 
   async listForCustomer(
-    _c: Pool | PoolClient,
-    _customerId: string,
-    _limit: number,
-    _offset: number,
-    _status?: OrderStatus,
-  ): Promise<Order[]> {
-    return [];
+    c: Pool | PoolClient,
+    customerId: string,
+    limit: number,
+    offset: number,
+  ): Promise<OrderListItemSnapshot[]> {
+    const res = await c.query<{
+      order_id: string;
+      status: string;
+      created_at: Date;
+      updated_at: Date;
+      total_price: string | number;
+      total_quantity: string | number | bigint;
+      payment_status: string | null;
+    }>(
+      `SELECT
+         o.order_id,
+         o.status,
+         o.created_at,
+         o.updated_at,
+         o.total_price,
+         COALESCE(i.qty_sum, 0) AS total_quantity,
+         lp.internal_status AS payment_status
+       FROM orders o
+       LEFT JOIN (
+         SELECT order_id, SUM(quantity) AS qty_sum
+         FROM order_items
+         GROUP BY order_id
+       ) i ON i.order_id = o.order_id
+       LEFT JOIN LATERAL (
+         SELECT p.internal_status
+         FROM payments p
+         WHERE p.order_id = o.order_id
+         ORDER BY p.created_at DESC, p.payment_id DESC
+         LIMIT 1
+       ) lp ON true
+       WHERE o.customer_id = $1
+       ORDER BY o.created_at DESC, o.order_id DESC
+       LIMIT $2 OFFSET $3`,
+      [customerId, limit, offset],
+    );
+    return res.rows.map((row) => ({
+      orderId: row.order_id,
+      status: row.status,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      totalPriceMinor: numMinor(row.total_price),
+      totalQuantity: numQty(row.total_quantity),
+      paymentStatus: row.payment_status,
+    }));
   }
 
   async updateStatus(

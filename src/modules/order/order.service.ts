@@ -15,6 +15,10 @@ import {
   mapOrderDetailSnapshotToDto,
   type OrderDetailDto,
 } from "./order-detail.dto.js";
+import {
+  mapOrderListSnapshotToDto,
+  type OrderListItemDto,
+} from "./order-list.dto.js";
 import type { Logger } from "../../shared/logger/logger.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import { ErrorCodes } from "../../shared/errors/error-codes.js";
@@ -159,17 +163,21 @@ export class OrderService {
     return snapshot ? mapOrderDetailSnapshotToDto(snapshot) : null;
   }
 
-  async listOrders(
+  /**
+   * GET /api/v1/orders — read-only список заказов владельца (компактный DTO).
+   */
+  async listOrdersForCustomer(
     customerId: string,
-    q: { limit?: number; offset?: number; status?: string },
-  ) {
-    return this.orders.listForCustomer(
+    limit: number,
+    offset: number,
+  ): Promise<OrderListItemDto[]> {
+    const rows = await this.orders.listForCustomer(
       this.pool,
       customerId,
-      q.limit ?? 20,
-      q.offset ?? 0,
-      q.status as import("./order-state-machine.js").OrderStatus | undefined,
+      limit,
+      offset,
     );
+    return rows.map(mapOrderListSnapshotToDto);
   }
 
   async cancelOrder(customerId: string, orderId: string) {

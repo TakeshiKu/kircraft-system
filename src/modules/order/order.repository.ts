@@ -3,6 +3,7 @@ import type { Order, OrderItem } from "./order.domain.js";
 import type { OrderDeliverySnapshot } from "./order.domain.js";
 import type { OrderStatus } from "./order-state-machine.js";
 import type { OrderDetailSnapshot } from "./order-detail.dto.js";
+import type { OrderListItemSnapshot } from "./order-list.dto.js";
 
 /** Минимальные поля заказа: владелец, статус, сумма (мин. единицы) */
 export type OrderRowForDelivery = {
@@ -64,13 +65,16 @@ export interface OrderRepository {
     customerId: string,
   ): Promise<OrderDetailSnapshot | null>;
 
+  /**
+   * Список заказов клиента: один SELECT, `created_at DESC`, limit/offset.
+   * Агрегат количества позиций и последний payment — через JOIN / LATERAL (без N+1).
+   */
   listForCustomer(
     client: Pool | PoolClient,
     customerId: string,
     limit: number,
     offset: number,
-    status?: OrderStatus,
-  ): Promise<Order[]>;
+  ): Promise<OrderListItemSnapshot[]>;
 
   updateStatus(
     client: Pool | PoolClient,

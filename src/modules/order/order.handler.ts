@@ -4,6 +4,7 @@ import { requireAuth } from "../../shared/middleware/auth-context.js";
 import { parseSetDeliveryBody } from "./order.dto.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import { ErrorCodes } from "../../shared/errors/error-codes.js";
+import { parseOrderListPagination } from "./order-list.dto.js";
 
 /**
  * POST   /api/v1/order  — черновик заказа
@@ -46,20 +47,13 @@ export function registerOrderRoutes(
 
   app.get(p, async (request, reply) => {
     const { userId } = requireAuth(request);
-    const q = request.query as { limit?: string; offset?: string; status?: string };
-    const data = await orderService.listOrders(userId, {
-      limit: q.limit ? Number(q.limit) : undefined,
-      offset: q.offset ? Number(q.offset) : undefined,
-      status: q.status,
-    });
+    const { limit, offset } = parseOrderListPagination(
+      request.query as Record<string, string | string[] | undefined>,
+    );
+    const data = await orderService.listOrdersForCustomer(userId, limit, offset);
     return reply.send({
       data,
-      meta: {
-        request_id: request.id,
-        limit: Number(q.limit ?? 20),
-        offset: Number(q.offset ?? 0),
-        total: data.length,
-      },
+      meta: { request_id: request.id },
     });
   });
 
