@@ -141,6 +141,14 @@ Table orders {
   comment text [note: 'Комментарий к заказу']
   items_total bigint [not null, note: 'Сумма товаров в заказе в минимальных денежных единицах (копейки для RUB)']
   delivery_price bigint [not null, default: 0, note: 'Стоимость доставки (snapshot, дублирует order_deliveries), минимальные единицы']
+  delivery_provider varchar [note: 'Провайдер доставки (например cdek)']
+  delivery_type varchar [note: 'Тип доставки (например pickup_point)']
+  delivery_currency varchar [note: 'Валюта стоимости доставки (ISO 4217)']
+  pickup_point_id varchar [note: 'Идентификатор ПВЗ']
+  pickup_point_name varchar [note: 'Название ПВЗ']
+  pickup_point_address text [note: 'Адрес ПВЗ']
+  delivery_eta_min_days integer [note: 'Мин. срок доставки, дни']
+  delivery_eta_max_days integer [note: 'Макс. срок доставки, дни']
   total_price bigint [not null, note: 'Итоговая сумма заказа (items + delivery), минимальные единицы']
   paid_at timestamp [note: 'Дата и время подтвержденной успешной оплаты заказа']
   created_at timestamp [not null, note: 'Дата создания заказа']
@@ -226,6 +234,7 @@ Table payments {
   amount bigint [not null, note: 'Итоговая сумма платежа (товары и доставка), минимальные денежные единицы']
   currency char(3) [not null, note: 'Код валюты ISO 4217, например RUB']
   status varchar [not null, note: 'Внутренний статус попытки оплаты: created/pending/succeeded/canceled/error']
+  internal_status varchar [not null, note: 'Канонический внутренний статус попытки оплаты: created/pending/succeeded/canceled/error']
   provider_status varchar [note: 'Статус платежа в YooKassa']
   provider_paid boolean [not null, default: false, note: 'Флаг paid из YooKassa']
   external_payment_id varchar [note: 'Идентификатор платежа в YooKassa']
@@ -236,16 +245,49 @@ Table payments {
   confirmation_url text [note: 'URL страницы оплаты из YooKassa']
   provider_metadata text [note: 'Metadata YooKassa']
   cancellation_details text [note: 'Детали отмены платежа']
-  captured_at timestamp [note: 'Время подтверждения платежа в YooKassa']
-  expires_at timestamp [note: 'Время истечения платежа']
-  paid_at timestamp [note: 'Внутреннее время признания оплаты успешной']
+  captured_at timestamptz [note: 'Время подтверждения платежа в YooKassa']
+  expires_at timestamptz [note: 'Время истечения платежа']
+  paid_at timestamptz [note: 'Внутреннее время признания оплаты успешной']
   payment_attempt_id varchar [not null, unique, note: 'Бизнес-идентификатор попытки оплаты, общий для внутренней логики и передачи в metadata YooKassa']
-  created_at timestamp [not null, note: 'Дата создания записи']
-  updated_at timestamp [not null, note: 'Дата последнего обновления']
-  last_status_check_at timestamp [note: 'Время последней проверки статуса']
-  last_webhook_at timestamp [note: 'Время последнего webhook']
+  created_at timestamptz [not null, note: 'Дата создания записи']
+  updated_at timestamptz [not null, note: 'Дата последнего обновления']
+  last_status_check_at timestamptz [note: 'Время последней проверки статуса']
+  last_webhook_at timestamptz [note: 'Время последнего webhook']
   last_status_source varchar [note: 'Источник обновления статуса']
   provider_response_raw text [note: 'Сырой ответ YooKassa']
+
+  indexes {
+    (order_id, internal_status) [name: 'idx_payments_order_internal_status']
+    (expires_at) [name: 'idx_payments_expires_at']
+  }
+}
+
+Table payment_idempotency {
+  id varchar [pk, note: 'Технический ключ записи client idempotency']
+  idempotency_key varchar(128) [not null, note: 'Ключ идемпотентности клиентского API']
+  customer_id varchar [not null, note: 'Ссылка на клиента']
+  order_id varchar [not null, note: 'Ссылка на заказ']
+  payment_attempt_id varchar [not null, note: 'Ссылка на попытку оплаты (payments.payment_attempt_id)']
+  created_at timestamptz [not null, note: 'Дата фиксации idempotency-ключа']
+
+  indexes {
+    (idempotency_key, customer_id) [unique, name: 'uq_payment_idempotency_key_customer']
+    (payment_attempt_id) [name: 'idx_payment_idempotency_attempt']
+  }
+}
+
+Table payment_webhook_events {
+  id varchar [pk, note: 'Технический ключ сохраненного webhook-события']
+  external_payment_id varchar [not null, note: 'Идентификатор платежа у провайдера']
+  provider_status varchar [not null, note: 'Статус провайдера (dedupe key part)']
+  payload json [not null, note: 'Полный payload webhook-события']
+  processing_status varchar [not null, default: 'pending', note: 'Состояние обработки webhook: pending/processed/failed']
+  created_at timestamptz [not null, note: 'Дата сохранения webhook-события']
+
+  indexes {
+    (external_payment_id, provider_status) [unique, name: 'uq_payment_webhook_events_external_status']
+    (created_at) [name: 'idx_payment_webhook_events_pending_created_at', note: 'В PostgreSQL реализован partial index WHERE processing_status = ''pending''']
+  }
 }
 
 Ref: products.category_id > categories.category_id
@@ -282,3 +324,6 @@ Ref: order_status_history.changed_by_staff_user_id > staff_users.staff_user_id
 
 Ref: payments.order_id > orders.order_id
 Ref: payments.customer_id > customers.customer_id
+Ref: payment_idempotency.customer_id > customers.customer_id
+Ref: payment_idempotency.order_id > orders.order_id
+Ref: payment_idempotency.payment_attempt_id > payments.payment_attempt_id

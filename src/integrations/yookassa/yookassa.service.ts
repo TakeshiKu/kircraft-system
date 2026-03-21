@@ -1,5 +1,9 @@
 import type { Logger } from "../../shared/logger/logger.js";
-import { YooKassaHttpClient } from "./yookassa.client.js";
+import {
+  YooKassaHttpClient,
+  type YooKassaCreateRedirectParams,
+  type YooKassaCreateRedirectResult,
+} from "./yookassa.client.js";
 
 /**
  * Обёртка над клиентом: идемпотентные заголовки, маппинг ошибок провайдера.
@@ -10,6 +14,12 @@ export class YooKassaService {
     private readonly client: YooKassaHttpClient,
     private readonly log: Logger,
   ) {}
+
+  async createRedirectPayment(
+    params: YooKassaCreateRedirectParams,
+  ): Promise<YooKassaCreateRedirectResult> {
+    return this.client.createRedirectPayment(params);
+  }
 
   async createPaymentWithIdempotence(
     idempotenceKey: string,

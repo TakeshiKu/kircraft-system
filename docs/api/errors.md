@@ -268,6 +268,9 @@
 - `validation_error` — бизнес-валидация не пройдена (HTTP 422)
 - `internal_error` — внутренняя ошибка сервера (HTTP 500)
 - `order_not_found` — заказ не найден или не принадлежит текущему пользователю (HTTP 404)
+- `order_invalid_state` — операция недопустима для текущего статуса заказа (HTTP 409; например `PATCH /order/delivery` не в статусе `draft`)
+- `order_update_failed` — не удалось сохранить изменения заказа в БД (HTTP 500)
+- `customer_not_found` — клиент не найден (HTTP 404; используется при `POST /order` для создания черновика заказа)
 - `order_cannot_be_cancelled` — попытка отмены в недопустимом статусе (HTTP 409)
 - `cart_not_active` — отсутствует активная корзина, необходимая для создания заказа (HTTP 409)
 - `cart_already_converted` — заказ уже был создан из данной корзины (HTTP 409)
@@ -277,6 +280,7 @@
 
 - `order_not_payable` — заказ не может быть оплачен в текущем статусе (HTTP 409; используется при `POST /payments`)
 - `payment_not_found` — платеж не найден или не принадлежит текущему клиенту (HTTP 404; используется при `GET /payments/{payment_id}` и `POST /payments/webhook/yookassa`)
+- `payment_create_failed` — не удалось создать платёж у провайдера или сохранить запись в БД (HTTP 500; используется при `POST /api/v1/payments`)
 - `payment_attempt_conflict` — обнаружено конфликтующее состояние попыток оплаты (HTTP 409; используется при `POST /payments`)
 - `payment_state_conflict` — состояние платежа противоречит допустимой модели (HTTP 409; используется при `POST /payments/webhook/yookassa`)
 - `unauthorized_webhook` — webhook не прошел проверку подлинности (HTTP 401; используется при `POST /payments/webhook/yookassa`)

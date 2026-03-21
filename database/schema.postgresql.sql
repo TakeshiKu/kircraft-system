@@ -141,6 +141,14 @@ CREATE TABLE "orders" (
   "comment" text,
   "items_total" bigint NOT NULL,
   "delivery_price" bigint NOT NULL DEFAULT 0,
+  "delivery_provider" varchar,
+  "delivery_type" varchar,
+  "delivery_currency" varchar,
+  "pickup_point_id" varchar,
+  "pickup_point_name" varchar,
+  "pickup_point_address" text,
+  "delivery_eta_min_days" integer,
+  "delivery_eta_max_days" integer,
   "total_price" bigint NOT NULL,
   "paid_at" timestamp,
   "created_at" timestamp NOT NULL,
@@ -226,6 +234,7 @@ CREATE TABLE "payments" (
   "amount" bigint NOT NULL,
   "currency" char(3) NOT NULL,
   "status" varchar NOT NULL,
+  "internal_status" varchar NOT NULL,
   "provider_status" varchar,
   "provider_paid" boolean NOT NULL DEFAULT false,
   "external_payment_id" varchar,
@@ -236,16 +245,34 @@ CREATE TABLE "payments" (
   "confirmation_url" text,
   "provider_metadata" text,
   "cancellation_details" text,
-  "captured_at" timestamp,
-  "expires_at" timestamp,
-  "paid_at" timestamp,
+  "captured_at" timestamptz,
+  "expires_at" timestamptz,
+  "paid_at" timestamptz,
   "payment_attempt_id" varchar UNIQUE NOT NULL,
-  "created_at" timestamp NOT NULL,
-  "updated_at" timestamp NOT NULL,
-  "last_status_check_at" timestamp,
-  "last_webhook_at" timestamp,
+  "created_at" timestamptz NOT NULL,
+  "updated_at" timestamptz NOT NULL,
+  "last_status_check_at" timestamptz,
+  "last_webhook_at" timestamptz,
   "last_status_source" varchar,
   "provider_response_raw" text
+);
+
+CREATE TABLE "payment_idempotency" (
+  "id" varchar PRIMARY KEY,
+  "idempotency_key" varchar(128) NOT NULL,
+  "customer_id" varchar NOT NULL,
+  "order_id" varchar NOT NULL,
+  "payment_attempt_id" varchar NOT NULL,
+  "created_at" timestamptz NOT NULL
+);
+
+CREATE TABLE "payment_webhook_events" (
+  "id" varchar PRIMARY KEY,
+  "external_payment_id" varchar NOT NULL,
+  "provider_status" varchar NOT NULL,
+  "payload" jsonb NOT NULL,
+  "processing_status" varchar NOT NULL DEFAULT 'pending',
+  "created_at" timestamptz NOT NULL
 );
 
 COMMENT ON COLUMN "categories"."category_id" IS 'Уникальный идентификатор категории';
@@ -679,3 +706,38 @@ ALTER TABLE "order_status_history" ADD FOREIGN KEY ("changed_by_staff_user_id") 
 ALTER TABLE "payments" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("order_id") DEFERRABLE INITIALLY IMMEDIATE;
 
 ALTER TABLE "payments" ADD FOREIGN KEY ("customer_id") REFERENCES "customers" ("customer_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "payments" ADD CONSTRAINT "chk_payments_internal_status"
+  CHECK ("internal_status" IN ('created', 'pending', 'succeeded', 'canceled', 'error'));
+
+ALTER TABLE "payments" ADD CONSTRAINT "chk_payments_provider_status"
+  CHECK ("provider_status" IS NULL OR "provider_status" IN ('pending', 'waiting_for_capture', 'succeeded', 'canceled'));
+
+ALTER TABLE "payment_idempotency" ADD CONSTRAINT "uq_payment_idempotency_key_customer"
+  UNIQUE ("idempotency_key", "customer_id");
+
+ALTER TABLE "payment_idempotency" ADD FOREIGN KEY ("customer_id") REFERENCES "customers" ("customer_id") DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE "payment_idempotency" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("order_id") DEFERRABLE INITIALLY IMMEDIATE;
+ALTER TABLE "payment_idempotency" ADD FOREIGN KEY ("payment_attempt_id") REFERENCES "payments" ("payment_attempt_id") DEFERRABLE INITIALLY IMMEDIATE;
+
+ALTER TABLE "payment_webhook_events" ADD CONSTRAINT "uq_payment_webhook_events_external_status"
+  UNIQUE ("external_payment_id", "provider_status");
+
+ALTER TABLE "payment_webhook_events" ADD CONSTRAINT "chk_payment_webhook_events_provider_status"
+  CHECK ("provider_status" IN ('pending', 'waiting_for_capture', 'succeeded', 'canceled'));
+
+ALTER TABLE "payment_webhook_events" ADD CONSTRAINT "chk_payment_webhook_events_processing_status"
+  CHECK ("processing_status" IN ('pending', 'processed', 'failed'));
+
+CREATE INDEX "idx_payments_order_id" ON "payments" ("order_id");
+CREATE INDEX "idx_payments_external_payment_id" ON "payments" ("external_payment_id");
+CREATE INDEX "idx_payments_customer_payment_id" ON "payments" ("customer_id", "payment_id");
+CREATE INDEX "idx_payments_order_internal_status" ON "payments" ("order_id", "internal_status");
+CREATE INDEX "idx_payments_expires_at" ON "payments" ("expires_at");
+CREATE INDEX "idx_payment_idempotency_attempt" ON "payment_idempotency" ("payment_attempt_id");
+CREATE INDEX "idx_payment_webhook_events_pending_created_at"
+  ON "payment_webhook_events" ("created_at")
+  WHERE "processing_status" = 'pending';
+CREATE UNIQUE INDEX "uq_payments_active_non_final_order"
+  ON "payments" ("order_id")
+  WHERE "internal_status" IN ('created', 'pending');

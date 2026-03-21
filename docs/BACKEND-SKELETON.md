@@ -87,9 +87,9 @@ database/migrations/
 | `GET /delivery/current` | `delivery.handler` | `DeliveryService` | то же |
 | `POST /orders` | `order.handler` | `OrderService` | `OrderRepository`, `CartRepository`, `CheckoutDeliveryRepository` (+ транзакция) |
 | `GET /orders`, `GET /orders/:id`, `POST …/cancel` | `order.handler` | `OrderService` | `OrderRepository` |
-| `POST /payments` | `payment.handler` | `PaymentService` | `PaymentRepository`, `OrderRepository`, `YooKassaService` |
-| `GET /payments/:id` | `payment.handler` | `PaymentService` | `PaymentRepository` |
-| `POST /payments/webhook/yookassa` | `payment.handler` | `PaymentWebhookService` | `PaymentRepository`, `OrderRepository` |
+| `POST /api/v1/payments` | `payment.handler` | `PaymentService.create` | `PaymentRepository`, `OrderRepository`, `YooKassaService` |
+| `GET /api/v1/payments/:id` | `payment.handler` | `PaymentService` | `PaymentRepository` |
+| `POST /api/v1/payments/webhook/yookassa` | `payment.handler` | `PaymentWebhookService` | `PaymentRepository`, `OrderRepository` |
 
 **Зависимости между модулями (направление вызовов):**
 
@@ -124,7 +124,7 @@ database/migrations/
 
 ## 6. Идемпотентность
 
-- `POST /payments`: заголовок `Idempotency-Key` → уникальный `payments.idempotence_key` + возврат той же попытки при повторе.
+- `POST /api/v1/payments`: для каждого запроса к YooKassa генерируется свой `Idempotence-Key` (UUID); заголовок клиента `Idempotency-Key` в текущей реализации не используется. Метод `createOrReturnPayment` (идемпотентность по ключу клиента) не реализован.
 - Webhook: дедуп по паре `(external_payment_id, статус)` или отдельная таблица `webhook_events` (реализовать в `PaymentRepository` / миграции).
 
 ## 7. Транзакции

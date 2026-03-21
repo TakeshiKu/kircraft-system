@@ -37,6 +37,7 @@ import {
 
 export function buildApp(config: AppConfig, log: Logger) {
   const pool = createPool(config.databaseUrl, log);
+  log.info("Ensure DB migrations are applied");
 
   const users = new UserRepositoryPg();
   const products = new ProductRepositoryPg();
@@ -60,9 +61,41 @@ export function buildApp(config: AppConfig, log: Logger) {
     cdekService,
     log,
   );
-  const orderService = new OrderService(pool, orders, carts, checkoutDelivery);
-  const paymentService = new PaymentService(pool, payments, orders, ykService);
-  const webhookService = new PaymentWebhookService(pool, payments, orders);
+  const orderService = new OrderService(pool, orders, carts, checkoutDelivery, log);
+  const webhookService = new PaymentWebhookService(
+    pool,
+    payments,
+    orders,
+    {
+      yookassaShopId: config.yookassa.shopId,
+      yookassaSecretKey: config.yookassa.secretKey,
+    },
+    log,
+  );
+  const paymentService = new PaymentService(
+    pool,
+    payments,
+    orders,
+    ykService,
+    config.yookassa.returnUrl,
+    async (externalPaymentId) => {
+      await webhookService.replayPendingWebhookEventsForExternalPayment(
+        externalPaymentId,
+      );
+    },
+    log,
+  );
+
+  setImmediate(() => {
+    void webhookService
+      .replayPendingWebhooksFromDatabase({ limit: 250, maxBatches: 20 })
+      .catch((err: unknown) => {
+        log.error(
+          { err, scope: "webhook_replay_startup_sweep" },
+          "startup pending webhook replay sweep failed",
+        );
+      });
+  });
 
   const app = Fastify({
     logger: log,

@@ -2,10 +2,13 @@
 export type CreatePaymentBodyDto = { order_id: string };
 
 export type YooKassaWebhookObjectDto = {
-  id?: string;
-  status?: string;
-  metadata?: {
-    order_id?: string;
-    payment_attempt_id?: string;
+  event?: string;
+  object?: {
+    id?: string;
+    status?: string;
+    metadata?: {
+      order_id?: string;
+      payment_attempt_id?: string;
+    };
   };
 };

@@ -12,6 +12,8 @@ export type AppConfig = {
     shopId: string;
     secretKey: string;
     apiUrl: string;
+    /** URL возврата после оплаты (redirect confirmation) */
+    returnUrl: string;
   };
   cdek: {
     account: string;
@@ -38,6 +40,9 @@ export function loadConfig(): AppConfig {
       shopId: process.env.YOOKASSA_SHOP_ID ?? "",
       secretKey: process.env.YOOKASSA_SECRET_KEY ?? "",
       apiUrl: process.env.YOOKASSA_API_URL ?? "https://api.yookassa.ru/v3",
+      returnUrl:
+        process.env.YOOKASSA_RETURN_URL?.trim() ||
+        "http://127.0.0.1:3000/payment/return",
     },
     cdek: {
       account: process.env.CDEK_ACCOUNT ?? "",

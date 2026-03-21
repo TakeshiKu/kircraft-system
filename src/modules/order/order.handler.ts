@@ -1,8 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import type { OrderService } from "./order.service.js";
 import { requireAuth } from "../../shared/middleware/auth-context.js";
+import { parseSetDeliveryBody } from "./order.dto.js";
 
 /**
+ * POST   /api/v1/order  — черновик заказа
+ * PATCH  /api/v1/order/delivery — выбранная доставка в черновик
  * POST   /api/v1/orders
  * GET    /api/v1/orders
  * GET    /api/v1/orders/:order_id
@@ -13,6 +16,25 @@ export function registerOrderRoutes(
   orderService: OrderService,
 ): void {
   const p = "/api/v1/orders";
+
+  app.patch("/api/v1/order/delivery", async (request, reply) => {
+    const { userId } = requireAuth(request);
+    const body = parseSetDeliveryBody(request.body);
+    const data = await orderService.setDelivery(userId, body);
+    return reply.code(200).send({
+      data,
+      meta: { request_id: request.id },
+    });
+  });
+
+  app.post("/api/v1/order", async (request, reply) => {
+    const { userId } = requireAuth(request);
+    const data = await orderService.createDraft(userId);
+    return reply.code(201).send({
+      data,
+      meta: { request_id: request.id },
+    });
+  });
 
   app.post(p, async (request, reply) => {
     const { userId } = requireAuth(request);

@@ -2,9 +2,11 @@ import type { FastifyInstance } from "fastify";
 import type { PaymentService } from "./payment.service.js";
 import type { PaymentWebhookService } from "./payment-webhook.service.js";
 import { requireAuth } from "../../shared/middleware/auth-context.js";
+import { AppError } from "../../shared/errors/app-error.js";
+import { ErrorCodes } from "../../shared/errors/error-codes.js";
 
 /**
- * POST /api/v1/payments
+ * POST /api/v1/payments      — создать платеж для заказа (YooKassa)
  * GET  /api/v1/payments/:payment_id
  * POST /api/v1/payments/webhook/yookassa  (без requireAuth — своя проверка подписи)
  */
@@ -17,13 +19,20 @@ export function registerPaymentRoutes(
 
   app.post(p, async (request, reply) => {
     const { userId } = requireAuth(request);
-    const idem = request.headers["idempotency-key"];
-    const key = typeof idem === "string" ? idem : "";
-    const body = request.body as { order_id?: string };
-    const data = await paymentService.createOrReturnPayment(userId, key, {
-      order_id: body.order_id ?? "",
+    const body = request.body as { order_id?: unknown };
+    if (typeof body?.order_id !== "string" || body.order_id.trim().length === 0) {
+      throw new AppError(
+        ErrorCodes.VALIDATION_ERROR,
+        400,
+        "Validation failed",
+        { field: "order_id", reason: "required_non_empty_string" },
+      );
+    }
+    const data = await paymentService.create(userId, body.order_id.trim());
+    return reply.code(200).send({
+      data,
+      meta: { request_id: request.id },
     });
-    return reply.code(201).send({ data, meta: { request_id: request.id } });
   });
 
   app.get(`${p}/:payment_id`, async (request, reply) => {
@@ -36,6 +45,7 @@ export function registerPaymentRoutes(
   app.post(`${p}/webhook/yookassa`, async (request, reply) => {
     const data = await webhookService.handleYooKassaNotification(
       request.body as Record<string, unknown> as import("./payment.dto.js").YooKassaWebhookObjectDto,
+      request.headers as Record<string, string | string[] | undefined>,
     );
     return reply.send({ data, meta: { request_id: request.id } });
   });
