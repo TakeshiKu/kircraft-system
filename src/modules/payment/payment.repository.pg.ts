@@ -453,6 +453,53 @@ export class PaymentRepositoryPg implements PaymentRepository {
     );
   }
 
+  async updatePaymentAfterProviderCreate(
+    c: PoolClient,
+    p: {
+      paymentId: string;
+      externalPaymentId: string;
+      providerStatus: string;
+      confirmationUrl: string;
+      source?: string | null;
+    },
+  ): Promise<void> {
+    await c.query(
+      `UPDATE payments
+       SET
+         internal_status = 'pending',
+         status = 'pending',
+         external_payment_id = $2,
+         provider_status = $3,
+         confirmation_url = $4,
+         updated_at = NOW(),
+         last_status_source = COALESCE($5, 'api')
+       WHERE payment_id = $1`,
+      [
+        p.paymentId,
+        p.externalPaymentId,
+        p.providerStatus,
+        p.confirmationUrl,
+        p.source ?? "api",
+      ],
+    );
+  }
+
+  async setPaymentAttemptError(
+    c: PoolClient,
+    p: { paymentId: string },
+  ): Promise<void> {
+    await c.query(
+      `UPDATE payments
+       SET
+         internal_status = 'error',
+         status = 'error',
+         updated_at = NOW(),
+         last_status_source = 'provider'
+       WHERE payment_id = $1`,
+      [p.paymentId],
+    );
+  }
+
   async updatePaymentFromProvider(
     c: PoolClient,
     p: Parameters<PaymentRepository["updatePaymentFromProvider"]>[1],

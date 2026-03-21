@@ -4,19 +4,68 @@ import type { PaymentRepository } from "./payment.repository.js";
 import type { OrderRepository } from "../order/order.repository.js";
 import type { YooKassaService } from "../../integrations/yookassa/yookassa.service.js";
 import type { CreatePaymentBodyDto } from "./payment.dto.js";
+import {
+  paymentToDetailDto,
+  type PaymentDetailDto,
+} from "./payment.dto.js";
+import type { Payment } from "./payment.domain.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import { ErrorCodes } from "../../shared/errors/error-codes.js";
 import type { Logger } from "../../shared/logger/logger.js";
+import { withTransaction } from "../../shared/db/transaction.js";
 
-export type CreatePaymentResponse = {
-  payment_id: string;
-  confirmation_url: string;
-};
+type PhaseAResult =
+  | { kind: "return"; payment: Payment }
+  | { kind: "fund"; payment: Payment; insertedThisRequest: boolean };
+
+function isPgUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code?: string }).code === "23505"
+  );
+}
+
+function mapYooKassaFailureToAppError(err: unknown): AppError {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes("credentials are not configured")) {
+    return new AppError(
+      ErrorCodes.PAYMENT_CREATE_FAILED,
+      500,
+      "Payment provider is not configured",
+      {},
+    );
+  }
+  const m = msg.match(/YooKassa API error (\d+)/);
+  const status = m ? parseInt(m[1], 10) : 0;
+  if (status >= 500) {
+    return new AppError(
+      ErrorCodes.PAYMENT_PROVIDER_UNAVAILABLE,
+      503,
+      "Payment provider temporarily unavailable",
+      { reason: msg },
+    );
+  }
+  if (status >= 400) {
+    return new AppError(
+      ErrorCodes.PAYMENT_PROVIDER_ERROR,
+      502,
+      "Payment provider rejected the request",
+      { reason: msg },
+    );
+  }
+  return new AppError(
+    ErrorCodes.PAYMENT_PROVIDER_UNAVAILABLE,
+    503,
+    "Payment provider request failed",
+    { reason: msg },
+  );
+}
 
 /**
  * Создание / возврат попытки оплаты, чтение статуса.
- * Идемпотентность: заголовок Idempotency-Key + idempotence_key в БД.
- * Транзакция: создание строки payment + вызов YooKassa — граница в реализации (rollback при сбое провайдера).
+ * POST /api/v1/payments: create-or-return по docs/api/modules/payment-api.md и Часть X.
  */
 export class PaymentService {
   constructor(
@@ -32,76 +81,106 @@ export class PaymentService {
   ) {}
 
   /**
-   * POST /api/v1/payments — создать платеж для черновика заказа, вернуть ссылку на оплату YooKassa.
+   * POST /api/v1/payments — create-or-return (канонический контракт).
    */
-  async create(userId: string, orderId: string): Promise<CreatePaymentResponse> {
+  async createOrReturnPayment(
+    customerId: string,
+    idempotencyKey: string,
+    body: CreatePaymentBodyDto,
+  ): Promise<{ detail: PaymentDetailDto; httpStatus: 200 | 201 }> {
+    const orderId = body.order_id;
+
     const order = await this.orders.findByOrderId(this.pool, orderId);
-    if (!order) {
+    if (!order || order.customerId !== customerId) {
       throw new AppError(ErrorCodes.ORDER_NOT_FOUND, 404, "Order not found", {});
     }
-    if (order.customerId !== userId) {
-      throw new AppError(ErrorCodes.ORDER_NOT_FOUND, 404, "Order not found", {});
-    }
-    if (order.status !== "draft") {
+    if (order.status !== "awaiting_payment") {
       throw new AppError(
-        ErrorCodes.ORDER_INVALID_STATE,
+        ErrorCodes.ORDER_NOT_PAYABLE,
         409,
-        "Order is not in draft state",
+        "Order is not payable in current state",
         { status: order.status },
       );
     }
 
     const amountMinor = order.totalPrice;
     const currency = "RUB";
-    const paymentId = randomUUID();
-    const paymentAttemptId = randomUUID();
-    const idempotenceKey = randomUUID();
     const amountValue = (amountMinor / 100).toFixed(2);
+    const description = `Order ${orderId}`;
+
+    const phaseA = await this.runPhaseAOrReconcile({
+      customerId,
+      orderId,
+      idempotencyKey,
+      amountMinor,
+      currency,
+    });
+
+    if (phaseA.kind === "return") {
+      return {
+        detail: paymentToDetailDto(phaseA.payment),
+        httpStatus: 200,
+      };
+    }
+
+    const { payment: draftRow, insertedThisRequest } = phaseA;
 
     let yk: { externalId: string; confirmationUrl: string; status: string };
     try {
       yk = await this.yookassa.createRedirectPayment({
-        idempotenceKey,
+        idempotenceKey: draftRow.idempotenceKey,
         amountValue,
         currency,
         returnUrl: this.yookassaReturnUrl,
-        description: `Order ${orderId}`,
-        metadata: { order_id: orderId, payment_attempt_id: paymentAttemptId },
+        description,
+        metadata: { order_id: orderId, payment_attempt_id: draftRow.paymentAttemptId },
       });
     } catch (e) {
-      const reason = e instanceof Error ? e.message : "Unknown error";
-      throw new AppError(
-        ErrorCodes.PAYMENT_CREATE_FAILED,
-        500,
-        "Failed to create payment with provider",
-        { reason },
-      );
+      await withTransaction(this.pool, async (client) => {
+        await this.payments.lockOrderPayments(client, orderId);
+        await this.payments.setPaymentAttemptError(client, {
+          paymentId: draftRow.paymentId,
+        });
+        await this.payments.saveClientIdempotency(client, {
+          id: randomUUID(),
+          customerId,
+          orderId,
+          paymentAttemptId: draftRow.paymentAttemptId,
+          idempotencyKey,
+        });
+      });
+      throw mapYooKassaFailureToAppError(e);
     }
 
-    try {
-      await this.payments.createPayment(this.pool, {
-        paymentId,
-        orderId,
-        customerId: userId,
-        amountMinor,
-        currency,
-        status: "pending",
-        providerStatus: yk.status,
+    await withTransaction(this.pool, async (client) => {
+      await this.payments.lockOrderPayments(client, orderId);
+      await this.payments.updatePaymentAfterProviderCreate(client, {
+        paymentId: draftRow.paymentId,
         externalPaymentId: yk.externalId,
-        idempotenceKey,
-        paymentAttemptId,
+        providerStatus: yk.status,
         confirmationUrl: yk.confirmationUrl,
-        returnUrl: this.yookassaReturnUrl,
-        description: `Order ${orderId}`,
-        confirmationType: "redirect",
+        source: "api",
       });
-    } catch (e) {
-      const reason = e instanceof Error ? e.message : "Unknown error";
+      await this.payments.saveClientIdempotency(client, {
+        id: randomUUID(),
+        customerId,
+        orderId,
+        paymentAttemptId: draftRow.paymentAttemptId,
+        idempotencyKey,
+      });
+    });
+
+    const fresh = await this.payments.findByIdForCustomer(
+      this.pool,
+      draftRow.paymentId,
+      customerId,
+    );
+    if (!fresh) {
       throw new AppError(
-        ErrorCodes.PAYMENT_CREATE_FAILED,
+        ErrorCodes.INTERNAL_ERROR,
         500,
-        "Failed to persist payment",
-        { reason },
+        "Payment row missing after create",
+        {},
       );
     }
 
@@ -119,26 +198,242 @@ export class PaymentService {
     }
 
     return {
-      payment_id: paymentId,
-      confirmation_url: yk.confirmationUrl,
+      detail: paymentToDetailDto(fresh),
+      httpStatus: insertedThisRequest ? 201 : 200,
     };
   }
 
-  async createOrReturnPayment(
-    customerId: string,
-    idempotencyKey: string,
-    body: CreatePaymentBodyDto,
-  ): Promise<unknown> {
-    void this.orders;
-    void this.yookassa;
-    void this.yookassaReturnUrl;
-    void customerId;
-    void idempotencyKey;
-    void body;
-    throw new Error("Not implemented");
+  /**
+   * Шаги 3–5: idempotency → active+url → иначе insert (или reconcile при гонке).
+   */
+  private async runPhaseAOrReconcile(ctx: {
+    customerId: string;
+    orderId: string;
+    idempotencyKey: string;
+    amountMinor: number;
+    currency: string;
+  }): Promise<PhaseAResult> {
+    try {
+      return await this.runPhaseALocked(ctx);
+    } catch (e) {
+      if (!isPgUniqueViolation(e)) {
+        throw e;
+      }
+      return await this.reconcileAfterActiveAttemptConflict(ctx);
+    }
   }
 
-  async getPayment(customerId: string, paymentId: string) {
-    return this.payments.findByIdForCustomer(this.pool, paymentId, customerId);
+  private async runPhaseALocked(ctx: {
+    customerId: string;
+    orderId: string;
+    idempotencyKey: string;
+    amountMinor: number;
+    currency: string;
+  }): Promise<PhaseAResult> {
+    return withTransaction(this.pool, async (client) => {
+      await this.payments.lockOrderPayments(client, ctx.orderId);
+
+      const mapped = await this.payments.findByClientIdempotency(
+        client,
+        ctx.customerId,
+        ctx.idempotencyKey,
+      );
+      if (mapped) {
+        if (mapped.orderId !== ctx.orderId) {
+          throw new AppError(
+            ErrorCodes.INVALID_REQUEST,
+            400,
+            "Idempotency-Key is already used for another order_id",
+            {},
+          );
+        }
+        return { kind: "return", payment: mapped };
+      }
+
+      const active = await this.payments.findActiveNonFinalForOrder(
+        client,
+        ctx.orderId,
+      );
+      if (active) {
+        if (active.customerId !== ctx.customerId) {
+          throw new AppError(ErrorCodes.ORDER_NOT_FOUND, 404, "Order not found", {});
+        }
+        if (
+          active.confirmationUrl !== null &&
+          active.confirmationUrl.length > 0
+        ) {
+          await this.payments.saveClientIdempotency(client, {
+            id: randomUUID(),
+            customerId: ctx.customerId,
+            orderId: ctx.orderId,
+            paymentAttemptId: active.paymentAttemptId,
+            idempotencyKey: ctx.idempotencyKey,
+          });
+          const resolved = await this.payments.findByClientIdempotency(
+            client,
+            ctx.customerId,
+            ctx.idempotencyKey,
+          );
+          if (
+            !resolved ||
+            resolved.paymentAttemptId !== active.paymentAttemptId ||
+            resolved.orderId !== ctx.orderId
+          ) {
+            throw new AppError(
+              ErrorCodes.INTERNAL_ERROR,
+              500,
+              "Client idempotency mapping inconsistent",
+              {},
+            );
+          }
+          return { kind: "return", payment: resolved };
+        }
+        if (
+          active.status === "created" ||
+          (active.status === "pending" &&
+            (!active.confirmationUrl || active.confirmationUrl.length === 0))
+        ) {
+          return {
+            kind: "fund",
+            payment: active,
+            insertedThisRequest: false,
+          };
+        }
+      }
+
+      const paymentId = randomUUID();
+      const paymentAttemptId = randomUUID();
+      const providerIdempotenceKey = randomUUID();
+
+      const draft: Omit<Payment, "createdAt" | "updatedAt"> = {
+        paymentId,
+        orderId: ctx.orderId,
+        customerId: ctx.customerId,
+        amountMinor: ctx.amountMinor,
+        currency: ctx.currency,
+        status: "created",
+        providerStatus: null,
+        externalPaymentId: null,
+        idempotenceKey: providerIdempotenceKey,
+        paymentAttemptId,
+        confirmationUrl: null,
+        expiresAt: null,
+        paidAt: null,
+      };
+
+      const inserted = await this.payments.insertPaymentAttempt(client, draft);
+      return {
+        kind: "fund",
+        payment: inserted,
+        insertedThisRequest: true,
+      };
+    });
+  }
+
+  /**
+   * X.15: после конфликта unique (активная попытка на заказ) — re-read и read-path.
+   */
+  private async reconcileAfterActiveAttemptConflict(ctx: {
+    customerId: string;
+    orderId: string;
+    idempotencyKey: string;
+    amountMinor: number;
+    currency: string;
+  }): Promise<PhaseAResult> {
+    return withTransaction(this.pool, async (client) => {
+      await this.payments.lockOrderPayments(client, ctx.orderId);
+
+      const mapped = await this.payments.findByClientIdempotency(
+        client,
+        ctx.customerId,
+        ctx.idempotencyKey,
+      );
+      if (mapped) {
+        if (mapped.orderId !== ctx.orderId) {
+          throw new AppError(
+            ErrorCodes.INVALID_REQUEST,
+            400,
+            "Idempotency-Key is already used for another order_id",
+            {},
+          );
+        }
+        return { kind: "return", payment: mapped };
+      }
+
+      const active = await this.payments.findActiveNonFinalForOrder(
+        client,
+        ctx.orderId,
+      );
+      if (active && active.customerId !== ctx.customerId) {
+        throw new AppError(ErrorCodes.ORDER_NOT_FOUND, 404, "Order not found", {});
+      }
+
+      if (
+        active &&
+        active.confirmationUrl !== null &&
+        active.confirmationUrl.length > 0
+      ) {
+        await this.payments.saveClientIdempotency(client, {
+          id: randomUUID(),
+          customerId: ctx.customerId,
+          orderId: ctx.orderId,
+          paymentAttemptId: active.paymentAttemptId,
+          idempotencyKey: ctx.idempotencyKey,
+        });
+        const resolved = await this.payments.findByClientIdempotency(
+          client,
+          ctx.customerId,
+          ctx.idempotencyKey,
+        );
+        if (
+          !resolved ||
+          resolved.paymentAttemptId !== active.paymentAttemptId ||
+          resolved.orderId !== ctx.orderId
+        ) {
+          throw new AppError(
+            ErrorCodes.INTERNAL_ERROR,
+            500,
+            "Client idempotency mapping inconsistent",
+            {},
+          );
+        }
+        return { kind: "return", payment: resolved };
+      }
+
+      if (
+        active &&
+        (active.status === "created" ||
+          (active.status === "pending" &&
+            (!active.confirmationUrl || active.confirmationUrl.length === 0)))
+      ) {
+        return {
+          kind: "fund",
+          payment: active,
+          insertedThisRequest: false,
+        };
+      }
+
+      throw new AppError(
+        ErrorCodes.PAYMENT_ATTEMPT_CONFLICT,
+        409,
+        "Payment attempts for this order are in an inconsistent state",
+        {},
+      );
+    });
+  }
+
+  /**
+   * GET /api/v1/payments/{payment_id}: только чтение БД, без YooKassa / webhook / replay / побочных эффектов.
+   */
+  async getPayment(
+    customerId: string,
+    paymentId: string,
+  ): Promise<PaymentDetailDto | null> {
+    const row = await this.payments.findByIdForCustomer(
+      this.pool,
+      paymentId,
+      customerId,
+    );
+    return row ? paymentToDetailDto(row) : null;
   }
 }

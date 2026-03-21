@@ -78,6 +78,25 @@ export interface PaymentRepository {
   /** Создать запись платежа (после создания платежа в YooKassa). */
   createPayment(client: Pool, data: CreatePaymentRow): Promise<void>;
 
+  /**
+   * После успешного create в YooKassa: created → pending, внешний id, ссылка, provider_status.
+   */
+  updatePaymentAfterProviderCreate(
+    client: PoolClient,
+    params: {
+      paymentId: string;
+      externalPaymentId: string;
+      providerStatus: string;
+      confirmationUrl: string;
+      source?: string | null;
+    },
+  ): Promise<void>;
+
+  /**
+   * Ошибка провайдера при создании: попытка остаётся в БД, internal_status = error (неактивна).
+   */
+  setPaymentAttemptError(client: PoolClient, params: { paymentId: string }): Promise<void>;
+
   updatePaymentFromProvider(
     client: PoolClient,
     params: {
