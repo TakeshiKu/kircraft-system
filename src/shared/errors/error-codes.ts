@@ -1,0 +1,28 @@
+/**
+ * Коды ошибок API — синхронизировать с docs/api/errors.md и модулями.
+ */
+export const ErrorCodes = {
+  INVALID_REQUEST: "invalid_request",
+  UNAUTHORIZED: "unauthorized",
+  VALIDATION_ERROR: "validation_error",
+  NOT_FOUND: "not_found",
+  ORDER_NOT_FOUND: "order_not_found",
+  PAYMENT_NOT_FOUND: "payment_not_found",
+  CART_NOT_ACTIVE: "cart_not_active",
+  CART_ALREADY_CONVERTED: "cart_already_converted",
+  ITEM_NOT_AVAILABLE: "item_not_available",
+  PRODUCT_NOT_FOUND: "product_not_found",
+  CART_ITEM_NOT_FOUND: "cart_item_not_found",
+  ORDER_CANNOT_BE_CANCELLED: "order_cannot_be_cancelled",
+  ORDER_NOT_PAYABLE: "order_not_payable",
+  PAYMENT_ATTEMPT_CONFLICT: "payment_attempt_conflict",
+  PAYMENT_STATE_CONFLICT: "payment_state_conflict",
+  UNAUTHORIZED_WEBHOOK: "unauthorized_webhook",
+  PAYMENT_PROVIDER_ERROR: "payment_provider_error",
+  PAYMENT_PROVIDER_UNAVAILABLE: "payment_provider_unavailable",
+  DELIVERY_NOT_AVAILABLE: "delivery_not_available",
+  PICKUP_POINT_NOT_FOUND: "pickup_point_not_found",
+  DELIVERY_NOT_CALCULATED: "delivery_not_calculated",
+  DELIVERY_NOT_SELECTED: "delivery_not_selected",
+  INTERNAL_ERROR: "internal_error",
+} as const;
