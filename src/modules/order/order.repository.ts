@@ -2,6 +2,7 @@ import type { Pool, PoolClient } from "pg";
 import type { Order, OrderItem } from "./order.domain.js";
 import type { OrderDeliverySnapshot } from "./order.domain.js";
 import type { OrderStatus } from "./order-state-machine.js";
+import type { OrderDetailSnapshot } from "./order-detail.dto.js";
 
 /** Минимальные поля заказа: владелец, статус, сумма (мин. единицы) */
 export type OrderRowForDelivery = {
@@ -52,6 +53,16 @@ export interface OrderRepository {
     orderId: string,
     customerId: string,
   ): Promise<Order | null>;
+
+  /**
+   * Детальный снимок заказа: основное чтение с `order_id` + `customer_id` в WHERE;
+   * позиции и последняя payment-строка — по принадлежащему order_id (после успешной проверки владельца).
+   */
+  findOrderDetailForCustomer(
+    client: Pool | PoolClient,
+    orderId: string,
+    customerId: string,
+  ): Promise<OrderDetailSnapshot | null>;
 
   listForCustomer(
     client: Pool | PoolClient,

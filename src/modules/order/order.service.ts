@@ -11,6 +11,10 @@ import {
 } from "./order-state-machine.js";
 import type { Order } from "./order.domain.js";
 import type { SetDeliveryBodyDto } from "./order.dto.js";
+import {
+  mapOrderDetailSnapshotToDto,
+  type OrderDetailDto,
+} from "./order-detail.dto.js";
 import type { Logger } from "../../shared/logger/logger.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import { ErrorCodes } from "../../shared/errors/error-codes.js";
@@ -140,6 +144,19 @@ export class OrderService {
 
   async getOrder(customerId: string, orderId: string) {
     return this.orders.findByIdForCustomer(this.pool, orderId, customerId);
+  }
+
+  /**
+   * GET /api/v1/orders/:order_id — только чтение из БД, без побочных эффектов.
+   * Владелец обязателен: фильтр в первом запросе к `orders`.
+   */
+  async getOrderDetail(customerId: string, orderId: string): Promise<OrderDetailDto | null> {
+    const snapshot = await this.orders.findOrderDetailForCustomer(
+      this.pool,
+      orderId,
+      customerId,
+    );
+    return snapshot ? mapOrderDetailSnapshotToDto(snapshot) : null;
   }
 
   async listOrders(

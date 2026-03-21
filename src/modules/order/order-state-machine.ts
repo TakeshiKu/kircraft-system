@@ -4,6 +4,7 @@
  */
 
 export type OrderStatus =
+  | "draft"
   | "created"
   | "awaiting_payment"
   | "needs_clarification"

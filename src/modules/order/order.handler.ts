@@ -2,6 +2,8 @@ import type { FastifyInstance } from "fastify";
 import type { OrderService } from "./order.service.js";
 import { requireAuth } from "../../shared/middleware/auth-context.js";
 import { parseSetDeliveryBody } from "./order.dto.js";
+import { AppError } from "../../shared/errors/app-error.js";
+import { ErrorCodes } from "../../shared/errors/error-codes.js";
 
 /**
  * POST   /api/v1/order  — черновик заказа
@@ -63,8 +65,21 @@ export function registerOrderRoutes(
 
   app.get(`${p}/:order_id`, async (request, reply) => {
     const { userId } = requireAuth(request);
-    const { order_id } = request.params as { order_id: string };
-    const data = await orderService.getOrder(userId, order_id);
+    const { order_id: rawOrderId } = request.params as { order_id: string };
+    const order_id =
+      typeof rawOrderId === "string" ? rawOrderId.trim() : "";
+    if (order_id.length === 0) {
+      throw new AppError(
+        ErrorCodes.INVALID_REQUEST,
+        400,
+        "Invalid order_id",
+        { field: "order_id", reason: "required_non_empty_string" },
+      );
+    }
+    const data = await orderService.getOrderDetail(userId, order_id);
+    if (!data) {
+      throw new AppError(ErrorCodes.ORDER_NOT_FOUND, 404, "Order not found", {});
+    }
     return reply.send({ data, meta: { request_id: request.id } });
   });
 
