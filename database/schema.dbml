@@ -188,7 +188,7 @@ Table order_deliveries {
   delivery_eta_min_days int [note: 'Минимальный срок доставки в днях']
   delivery_eta_max_days int [note: 'Максимальный срок доставки в днях']
   delivery_price bigint [not null, default: 0, note: 'Стоимость доставки в минимальных денежных единицах']
-  delivery_currency char(3) [not null, default: 'RUB', note: 'Валюта доставки']
+  delivery_currency varchar(3) [not null, default: 'RUB', note: 'Валюта доставки ISO 4217, 3 символа']
   provider_payload text [note: 'Сырой или нормализованный ответ провайдера доставки']
   calculated_at timestamp [note: 'Дата и время расчета доставки']
   confirmed_at timestamp [note: 'Дата и время фиксации доставки в заказе']
@@ -232,7 +232,7 @@ Table payments {
   order_id varchar [not null, note: 'Ссылка на заказ']
   customer_id varchar [not null, note: 'Ссылка на клиента, инициировавшего оплату']
   amount bigint [not null, note: 'Итоговая сумма платежа (товары и доставка), минимальные денежные единицы']
-  currency char(3) [not null, note: 'Код валюты ISO 4217, например RUB']
+  currency varchar(3) [not null, note: 'Код валюты ISO 4217, например RUB']
   status varchar [not null, note: 'Внутренний статус попытки оплаты: created/pending/succeeded/canceled/error']
   internal_status varchar [not null, note: 'Канонический внутренний статус попытки оплаты: created/pending/succeeded/canceled/error']
   provider_status varchar [note: 'Статус платежа в YooKassa']
@@ -286,7 +286,7 @@ Table payment_webhook_events {
 
   indexes {
     (external_payment_id, provider_status) [unique, name: 'uq_payment_webhook_events_external_status']
-    (created_at) [name: 'idx_payment_webhook_events_pending_created_at', note: 'В PostgreSQL реализован partial index WHERE processing_status = ''pending''']
+    (created_at) [name: 'idx_payment_webhook_events_pending_created_at', note: 'В PostgreSQL — partial index WHERE processing_status = pending']
   }
 }
 
