@@ -361,13 +361,20 @@ export class PaymentWebhookService {
       }
 
       const actual = await this.payments.getActualAttemptForOrder(client, payment.orderId);
-      const isLateAttempt = actual !== null && actual.paymentAttemptId !== attemptId;
+      const isLateByAttemptId = actual !== null && actual.paymentAttemptId !== attemptId;
+      const isExpiredTarget = await this.payments.isPaymentAttemptExpiredNow(
+        client,
+        payment.paymentId,
+      );
 
       const mapped = this.mapProviderToInternal(providerStatus);
-      const effectiveInternalStatus: PaymentInternalStatus =
-        isLateAttempt && mapped === "succeeded" ? "canceled" : mapped;
+      const treatSucceededAsNonPaying =
+        mapped === "succeeded" && (isLateByAttemptId || isExpiredTarget);
+      const effectiveInternalStatus: PaymentInternalStatus = treatSucceededAsNonPaying
+        ? "canceled"
+        : mapped;
 
-      if (isLateAttempt && mapped === "succeeded") {
+      if (treatSucceededAsNonPaying) {
         logPayment(this.log, "warn", {
           scope,
           event: "webhook_late_attempt",
@@ -376,10 +383,14 @@ export class PaymentWebhookService {
           payment_id: payment.paymentId,
           payment_attempt_id: attemptId,
           external_payment_id: externalId,
-          reason: "late_succeeded_treated_as_canceled",
+          reason: isLateByAttemptId
+            ? "late_succeeded_treated_as_canceled"
+            : "expired_succeeded_treated_as_canceled",
           details: {
             provider_status: providerStatus,
-            actual_payment_attempt_id: actual?.paymentAttemptId,
+            ...(isLateByAttemptId
+              ? { actual_payment_attempt_id: actual?.paymentAttemptId }
+              : { expired_attempt: true }),
           },
         });
       }
@@ -466,7 +477,7 @@ export class PaymentWebhookService {
         providerStatus,
         paidAt: effectiveInternalStatus === "succeeded" ? new Date() : null,
         source: "webhook",
-        ...(isLateAttempt && mapped === "succeeded" ? { providerPaid: false } : {}),
+        ...(treatSucceededAsNonPaying ? { providerPaid: false } : {}),
       });
 
       if (options.log_mode === "http") {
@@ -483,7 +494,7 @@ export class PaymentWebhookService {
         });
       }
 
-      if (!isLateAttempt && effectiveInternalStatus === "succeeded") {
+      if (!treatSucceededAsNonPaying && effectiveInternalStatus === "succeeded") {
         await client.query(
           `UPDATE orders
            SET status = 'paid',

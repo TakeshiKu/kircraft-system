@@ -302,6 +302,7 @@ export class PaymentService {
   }): Promise<PhaseAResult> {
     return withTransaction(this.pool, async (client) => {
       await this.payments.lockOrderPayments(client, ctx.orderId);
+      await this.payments.cancelExpiredNonFinalAttemptsForOrder(client, ctx.orderId);
 
       const mapped = await this.payments.findByClientIdempotency(
         client,
@@ -417,6 +418,7 @@ export class PaymentService {
   }): Promise<PhaseAResult> {
     return withTransaction(this.pool, async (client) => {
       await this.payments.lockOrderPayments(client, ctx.orderId);
+      await this.payments.cancelExpiredNonFinalAttemptsForOrder(client, ctx.orderId);
 
       const mapped = await this.payments.findByClientIdempotency(
         client,

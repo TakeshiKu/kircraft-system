@@ -543,6 +543,44 @@ export class PaymentRepositoryPg implements PaymentRepository {
     );
   }
 
+  async cancelExpiredNonFinalAttemptsForOrder(
+    c: PoolClient,
+    orderId: string,
+  ): Promise<void> {
+    await c.query(
+      `UPDATE payments
+       SET
+         internal_status = 'canceled',
+         status = 'canceled',
+         updated_at = NOW(),
+         last_status_source = 'expiry'
+       WHERE order_id = $1
+         AND internal_status IN ('created', 'pending')
+         AND expires_at IS NOT NULL
+         AND expires_at <= NOW()`,
+      [orderId],
+    );
+  }
+
+  async isPaymentAttemptExpiredNow(
+    c: Pool | PoolClient,
+    paymentId: string,
+  ): Promise<boolean> {
+    const res = await c.query<{ expired: boolean }>(
+      `SELECT EXISTS (
+         SELECT 1
+         FROM payments
+         WHERE payment_id = $1
+           AND internal_status IN ('created', 'pending')
+           AND expires_at IS NOT NULL
+           AND expires_at <= NOW()
+       ) AS expired`,
+      [paymentId],
+    );
+    const row = res.rows[0];
+    return row?.expired === true;
+  }
+
   async getActualAttemptForOrder(
     c: Pool | PoolClient,
     orderId: string,
@@ -584,6 +622,11 @@ export class PaymentRepositoryPg implements PaymentRepository {
          updated_at
        FROM payments
        WHERE order_id = $1
+         AND NOT (
+           internal_status IN ('created', 'pending')
+           AND expires_at IS NOT NULL
+           AND expires_at <= NOW()
+         )
        ORDER BY created_at DESC, payment_id DESC
        LIMIT 1`,
       [orderId],

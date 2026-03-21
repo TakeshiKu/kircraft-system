@@ -119,12 +119,31 @@ export interface PaymentRepository {
   /**
    * Возвращает actual attempt для order:
    * 1) активная нефинальная (created/pending + not expired)
-   * 2) иначе последняя созданная.
+   * 2) иначе последняя строка заказа, кроме просроченных created/pending (по expires_at <= NOW()).
    */
   getActualAttemptForOrder(
     client: Pool | PoolClient,
     orderId: string,
   ): Promise<Payment | null>;
+
+  /**
+   * Просроченные created/pending (expires_at <= NOW()) → canceled, чтобы не держать слот
+   * partial unique index и совпадать с семантикой «неактивна после дедлайна».
+   * Вызывать после lockOrderPayments в той же транзакции.
+   */
+  cancelExpiredNonFinalAttemptsForOrder(
+    client: PoolClient,
+    orderId: string,
+  ): Promise<void>;
+
+  /**
+   * true, если попытка ещё created/pending и expires_at <= NOW() (по БД).
+   * Не относится к уже финализированным строкам (в т.ч. canceled по expiry).
+   */
+  isPaymentAttemptExpiredNow(
+    client: Pool | PoolClient,
+    paymentId: string,
+  ): Promise<boolean>;
 
   /**
    * Явная блокировка payment-строк заказа для использования в сервисной транзакции.
