@@ -80,7 +80,8 @@ API построен на следующих принципах:
 
 ### Контракты модулей
 - `modules/cart-api.md` — управление корзиной
-- `modules/delivery-api.md` — доставка
+- `modules/delivery-api.md` — доставка  
+  Уточнения MVP (CDEK, checkout): `../integrations/cdek/delivery-mvp-clarifications.md`
 - `modules/order-api.md` — заказы
 - `modules/payment-api.md` — оплата
 - `modules/customer-api.md` — клиенты

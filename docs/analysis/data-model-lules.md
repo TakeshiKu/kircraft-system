@@ -29,6 +29,8 @@
 
 5. Поля `updated_at` фиксируют момент последнего изменения записи.
 
+6. **Денежные суммы** в таблицах из `schema.dbml` хранятся в **минимальных денежных единицах** (для валюты `RUB` — в копейках) как **целые числа**. То же правило применяется к суммам в публичном API (`docs/api/conventions.md`, §4.2). Поля: `products.base_price`, `orders.items_total`, `orders.delivery_price`, `orders.total_price`, `order_items.price_snapshot`, `order_deliveries.delivery_price`, `payments.amount`.
+
 ---
 
 ## 2. Статусы и перечисления
@@ -123,7 +125,7 @@
 
 2. `Collection` для товара является необязательной.
 
-3. `products.base_price >= 0`.
+3. `products.base_price >= 0` (значение в минимальных денежных единицах).
 
 4. У одного товара может быть несколько фотографий,
 но не более одной основной фотографии (`is_main = true`).
@@ -229,7 +231,7 @@
 
 5. `order_items.quantity >= 1`.
 
-6. `order_items.price_snapshot >= 0`.
+6. `order_items.price_snapshot >= 0` (минимальные денежные единицы).
 
 7. В заказе должны храниться snapshot-данные:
 
@@ -250,13 +252,13 @@
 10. Изменение товара, параметра или значения параметра
 не должно менять уже оформленные заказы.
 
-11. `orders.items_total >= 0`.
+11. `orders.items_total >= 0` (минимальные денежные единицы).
 
-12. `orders.delivery_price >= 0`.
+12. `orders.delivery_price >= 0` (минимальные денежные единицы).
 
-13. `orders.total_price >= 0`.
+13. `orders.total_price >= 0` (минимальные денежные единицы).
 
-14. `orders.total_price = orders.items_total + orders.delivery_price`.
+14. `orders.total_price = orders.items_total + orders.delivery_price` (все слагаемые в одних и тех же единицах).
 
 15. `orders.paid_at` должно быть заполнено
 только для подтвержденно оплаченного заказа.
@@ -326,7 +328,7 @@
 6. У одного заказа не должно быть более одной активной
 нефинальной попытки оплаты одновременно.
 
-7. `payments.amount > 0`.
+7. `payments.amount > 0` (минимальные денежные единицы, согласовано с `orders.total_price`).
 
 8. `payments.currency` хранит код валюты
 по ISO 4217 длиной 3 символа.

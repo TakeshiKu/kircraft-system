@@ -52,7 +52,7 @@
 
 Примеры:
 - /orders/{order_id}/cancel
-- /payments/{payment_id}/capture
+- DELETE /cart/items/{cart_item_id}
 
 Правила:
 - action endpoint используется только для явного бизнес-действия
@@ -108,6 +108,7 @@
 
 - денежные значения передаются в минимальных единицах
 - тип значения: integer
+- те же единицы и целочисленное хранение используются во внутренней модели данных (`database/schema.dbml`, `docs/analysis/data-model-lules.md`)
 
 Пример:
 

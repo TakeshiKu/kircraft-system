@@ -42,7 +42,7 @@
 - invalid_request
 - validation_error
 - order_not_found
-- payment_failed
+- payment_provider_error
 
 ---
 
@@ -255,6 +255,10 @@
 
 ---
 
+**Примечание (v1):** примеры JSON в разделах 5.3–5.6 используют коды `access_denied`, `order_already_paid`, `delivery_service_unavailable` только как **иллюстрацию формата**. В контрактах модулей API v1 (`docs/api/modules/*`) эти коды **не зафиксированы**; фактические коды и HTTP-статусы — в перечне ниже и в текстах модулей.
+
+---
+
 ## Используемые коды ошибок (частичный перечень)
 
 Ниже перечислены коды ошибок, которые используются в `docs/api/modules/order-api.md` (и потому должны быть корректно обрабатываемы клиентом). Перечень частичный.
@@ -271,13 +275,14 @@
 
 Ниже перечислены дополнительные коды ошибок, которые используются в `docs/api/modules/payment-api.md` (частичный перечень).
 
-- `order_not_payable` — заказ не может быть оплачен в текущем статусе (HTTP 409; используется при `POST /payments` и `GET /payments/{payment_id}`)
+- `order_not_payable` — заказ не может быть оплачен в текущем статусе (HTTP 409; используется при `POST /payments`)
 - `payment_not_found` — платеж не найден или не принадлежит текущему клиенту (HTTP 404; используется при `GET /payments/{payment_id}` и `POST /payments/webhook/yookassa`)
 - `payment_attempt_conflict` — обнаружено конфликтующее состояние попыток оплаты (HTTP 409; используется при `POST /payments`)
 - `payment_state_conflict` — состояние платежа противоречит допустимой модели (HTTP 409; используется при `POST /payments/webhook/yookassa`)
 - `unauthorized_webhook` — webhook не прошел проверку подлинности (HTTP 401; используется при `POST /payments/webhook/yookassa`)
-- `payment_provider_error` — ошибка взаимодействия с платежным провайдером (HTTP 502; используется при `POST /payments`, `GET /payments/{payment_id}` и обработке webhook)
-- `payment_provider_unavailable` — платежный сервис временно недоступен (HTTP 503; используется при `POST /payments`, `GET /payments/{payment_id}` и обработке webhook)
+- `payment_provider_error` — ошибка взаимодействия с платежным провайдером (HTTP 502; используется при `POST /payments`)
+- `payment_provider_unavailable` — платежный сервис временно недоступен (HTTP 503; используется при `POST /payments`)
+- `item_not_available` — в заказе есть позиции, недоступные для оплаты на момент инициации платежа (HTTP 422; используется при `POST /payments`, см. `payment-api.md`)
 
 Ниже перечислены дополнительные коды ошибок, которые используются в `docs/api/modules/delivery-api.md` (частичный перечень).
 
@@ -285,6 +290,11 @@
 - `pickup_point_not_found` — ПВЗ не найден или не относится к текущему расчету (HTTP 404)
 - `delivery_not_calculated` — попытка выбора ПВЗ без предварительного расчета (HTTP 409)
 - `delivery_not_selected` — доставка не выбрана (HTTP 422)
+
+Ниже перечислены коды ошибок, которые используются в `docs/api/modules/cart-api.md` (частичный перечень).
+
+- `product_not_found` — товар с указанным идентификатором не существует (HTTP 404)
+- `cart_item_not_found` — позиция корзины не найдена или не принадлежит текущему клиенту (HTTP 404)
 
 ---
 
