@@ -5,6 +5,11 @@ import type { OrderStatus } from "./order-state-machine.js";
 import type { OrderDetailSnapshot } from "./order-detail.dto.js";
 import type { OrderListItemSnapshot } from "./order-list.dto.js";
 
+export type CancelOrderForCustomerResult =
+  | { outcome: "updated"; orderId: string }
+  | { outcome: "not_found" }
+  | { outcome: "not_cancellable"; currentStatus: string };
+
 /** Минимальные поля заказа: владелец, статус, сумма (мин. единицы) */
 export type OrderRowForDelivery = {
   customerId: string;
@@ -82,6 +87,16 @@ export interface OrderRepository {
     customerId: string,
     newStatus: OrderStatus,
   ): Promise<Order | null>;
+
+  /**
+   * Условный UPDATE: только владелец и статус ∈ CLIENT_CANCELLABLE_ORDER_STATUSES.
+   * Без чтения заказа без фильтра по customer_id.
+   */
+  cancelOrderForCustomer(
+    client: Pool | PoolClient,
+    orderId: string,
+    customerId: string,
+  ): Promise<CancelOrderForCustomerResult>;
 
   findByOrderId(
     client: Pool | PoolClient,

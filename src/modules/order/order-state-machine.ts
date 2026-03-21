@@ -16,10 +16,15 @@ export type OrderStatus =
 
 export const ORDER_STATUS_AFTER_CREATE: OrderStatus = "awaiting_payment";
 
-const CANCELABLE: OrderStatus[] = ["awaiting_payment", "needs_clarification"];
+/** Статусы, в которых клиент может отменить заказ (совпадает с условием UPDATE в репозитории). */
+export const CLIENT_CANCELLABLE_ORDER_STATUSES: OrderStatus[] = [
+  "draft",
+  "awaiting_payment",
+  "needs_clarification",
+];
 
 export function canClientCancel(status: OrderStatus): boolean {
-  return CANCELABLE.includes(status);
+  return CLIENT_CANCELLABLE_ORDER_STATUSES.includes(status);
 }
 
 export function nextStatusAfterSuccessfulPayment(

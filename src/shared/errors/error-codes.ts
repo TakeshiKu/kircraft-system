@@ -18,6 +18,8 @@ export const ErrorCodes = {
   PRODUCT_NOT_FOUND: "product_not_found",
   CART_ITEM_NOT_FOUND: "cart_item_not_found",
   ORDER_CANNOT_BE_CANCELLED: "order_cannot_be_cancelled",
+  /** Заказ найден и принадлежит клиенту, но отмена в текущем статусе запрещена (в т.ч. повтор при уже cancelled). */
+  ORDER_NOT_CANCELLABLE: "order_not_cancellable",
   ORDER_CREATE_FAILED: "order_create_failed",
   ORDER_NOT_PAYABLE: "order_not_payable",
   PAYMENT_ATTEMPT_CONFLICT: "payment_attempt_conflict",

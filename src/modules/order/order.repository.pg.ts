@@ -3,10 +3,11 @@ import type {
   OrderRepository,
   OrderDeliveryUpdatePayload,
   OrderRowForDelivery,
+  CancelOrderForCustomerResult,
 } from "./order.repository.js";
 import type { Order, OrderItem } from "./order.domain.js";
 import type { OrderDeliverySnapshot } from "./order.domain.js";
-import type { OrderStatus } from "./order-state-machine.js";
+import { CLIENT_CANCELLABLE_ORDER_STATUSES, type OrderStatus } from "./order-state-machine.js";
 import type {
   OrderDetailItemSnapshot,
   OrderDetailPaymentSnapshot,
@@ -319,6 +320,37 @@ export class OrderRepositoryPg implements OrderRepository {
     _newStatus: OrderStatus,
   ): Promise<Order | null> {
     return null;
+  }
+
+  async cancelOrderForCustomer(
+    client: Pool | PoolClient,
+    orderId: string,
+    customerId: string,
+  ): Promise<CancelOrderForCustomerResult> {
+    const upd = await client.query<{ order_id: string }>(
+      `UPDATE orders
+       SET status = 'cancelled',
+           updated_at = NOW()
+       WHERE order_id = $1
+         AND customer_id = $2
+         AND status = ANY($3::text[])
+       RETURNING order_id`,
+      [orderId, customerId, CLIENT_CANCELLABLE_ORDER_STATUSES],
+    );
+    if ((upd.rowCount ?? 0) > 0 && upd.rows[0]) {
+      return { outcome: "updated", orderId: upd.rows[0].order_id };
+    }
+    const ex = await client.query<{ status: string }>(
+      `SELECT status FROM orders WHERE order_id = $1 AND customer_id = $2`,
+      [orderId, customerId],
+    );
+    if (ex.rows.length === 0) {
+      return { outcome: "not_found" };
+    }
+    return {
+      outcome: "not_cancellable",
+      currentStatus: ex.rows[0].status,
+    };
   }
 
   async findByOrderId(

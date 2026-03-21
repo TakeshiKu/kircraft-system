@@ -11,4 +11,5 @@ export { OrderRepositoryPg } from "./order.repository.pg.js";
 export { OrderService, type OrderDraftResponse } from "./order.service.js";
 export type { OrderDetailDto } from "./order-detail.dto.js";
 export type { OrderListItemDto } from "./order-list.dto.js";
+export type { CancelOrderResponseDto } from "./order-cancel.dto.js";
 export { registerOrderRoutes } from "./order.handler.js";

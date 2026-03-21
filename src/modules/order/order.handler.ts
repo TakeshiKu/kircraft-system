@@ -79,7 +79,17 @@ export function registerOrderRoutes(
 
   app.post(`${p}/:order_id/cancel`, async (request, reply) => {
     const { userId } = requireAuth(request);
-    const { order_id } = request.params as { order_id: string };
+    const { order_id: rawOrderId } = request.params as { order_id: string };
+    const order_id =
+      typeof rawOrderId === "string" ? rawOrderId.trim() : "";
+    if (order_id.length === 0) {
+      throw new AppError(
+        ErrorCodes.INVALID_REQUEST,
+        400,
+        "Invalid order_id",
+        { field: "order_id", reason: "required_non_empty_string" },
+      );
+    }
     const data = await orderService.cancelOrder(userId, order_id);
     return reply.send({ data, meta: { request_id: request.id } });
   });

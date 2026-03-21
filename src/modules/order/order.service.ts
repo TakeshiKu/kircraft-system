@@ -6,7 +6,6 @@ import type { CartRepository } from "../cart/cart.repository.js";
 import type { CheckoutDeliveryRepository } from "../delivery/delivery.repository.js";
 import {
   ORDER_STATUS_AFTER_CREATE,
-  canClientCancel,
   nextStatusAfterCreateCheckout,
 } from "./order-state-machine.js";
 import type { Order } from "./order.domain.js";
@@ -19,6 +18,7 @@ import {
   mapOrderListSnapshotToDto,
   type OrderListItemDto,
 } from "./order-list.dto.js";
+import type { CancelOrderResponseDto } from "./order-cancel.dto.js";
 import type { Logger } from "../../shared/logger/logger.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import { ErrorCodes } from "../../shared/errors/error-codes.js";
@@ -180,21 +180,40 @@ export class OrderService {
     return rows.map(mapOrderListSnapshotToDto);
   }
 
-  async cancelOrder(customerId: string, orderId: string) {
-    const order = await this.orders.findByIdForCustomer(
-      this.pool,
-      orderId,
-      customerId,
-    );
-    if (!order) return null;
-    if (!canClientCancel(order.status)) {
-      throw new Error("order_cannot_be_cancelled");
+  /**
+   * POST /api/v1/orders/:order_id/cancel — условный UPDATE по владельцу и допустимым статусам.
+   */
+  async cancelOrder(
+    customerId: string,
+    orderId: string,
+  ): Promise<CancelOrderResponseDto> {
+    try {
+      const result = await this.orders.cancelOrderForCustomer(
+        this.pool,
+        orderId,
+        customerId,
+      );
+      if (result.outcome === "not_found") {
+        throw new AppError(ErrorCodes.ORDER_NOT_FOUND, 404, "Order not found", {});
+      }
+      if (result.outcome === "not_cancellable") {
+        throw new AppError(
+          ErrorCodes.ORDER_NOT_CANCELLABLE,
+          409,
+          "Order cannot be cancelled in current state",
+          { status: result.currentStatus },
+        );
+      }
+      return { order_id: result.orderId, status: "cancelled" };
+    } catch (e) {
+      if (e instanceof AppError) throw e;
+      const message = e instanceof Error ? e.message : "Unknown error";
+      throw new AppError(
+        ErrorCodes.INTERNAL_ERROR,
+        500,
+        "Failed to cancel order",
+        { reason: message },
+      );
     }
-    return this.orders.updateStatus(
-      this.pool,
-      orderId,
-      customerId,
-      "cancelled",
-    );
   }
 }
