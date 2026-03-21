@@ -13,6 +13,7 @@ import { AppError } from "../../shared/errors/app-error.js";
 import { ErrorCodes } from "../../shared/errors/error-codes.js";
 import type { Logger } from "../../shared/logger/logger.js";
 import { withTransaction } from "../../shared/db/transaction.js";
+import { mapYooKassaFailureToAppError } from "./payment-errors.js";
 
 type PhaseAResult =
   | { kind: "return"; payment: Payment }
@@ -24,42 +25,6 @@ function isPgUniqueViolation(err: unknown): boolean {
     err !== null &&
     "code" in err &&
     (err as { code?: string }).code === "23505"
-  );
-}
-
-function mapYooKassaFailureToAppError(err: unknown): AppError {
-  const msg = err instanceof Error ? err.message : String(err);
-  if (msg.includes("credentials are not configured")) {
-    return new AppError(
-      ErrorCodes.PAYMENT_CREATE_FAILED,
-      500,
-      "Payment provider is not configured",
-      {},
-    );
-  }
-  const m = msg.match(/YooKassa API error (\d+)/);
-  const status = m ? parseInt(m[1], 10) : 0;
-  if (status >= 500) {
-    return new AppError(
-      ErrorCodes.PAYMENT_PROVIDER_UNAVAILABLE,
-      503,
-      "Payment provider temporarily unavailable",
-      { reason: msg },
-    );
-  }
-  if (status >= 400) {
-    return new AppError(
-      ErrorCodes.PAYMENT_PROVIDER_ERROR,
-      502,
-      "Payment provider rejected the request",
-      { reason: msg },
-    );
-  }
-  return new AppError(
-    ErrorCodes.PAYMENT_PROVIDER_UNAVAILABLE,
-    503,
-    "Payment provider request failed",
-    { reason: msg },
   );
 }
 
@@ -283,7 +248,7 @@ export class PaymentService {
               ErrorCodes.INTERNAL_ERROR,
               500,
               "Client idempotency mapping inconsistent",
-              {},
+              { reason: "idempotency_resolve_mismatch" },
             );
           }
           return { kind: "return", payment: resolved };
@@ -394,7 +359,7 @@ export class PaymentService {
             ErrorCodes.INTERNAL_ERROR,
             500,
             "Client idempotency mapping inconsistent",
-            {},
+            { reason: "idempotency_resolve_mismatch" },
           );
         }
         return { kind: "return", payment: resolved };

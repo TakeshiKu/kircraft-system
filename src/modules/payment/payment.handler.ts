@@ -78,7 +78,9 @@ export function registerPaymentRoutes(
     }
     const data = await paymentService.getPayment(userId, payment_id.trim());
     if (!data) {
-      throw new AppError(ErrorCodes.PAYMENT_NOT_FOUND, 404, "Payment not found", {});
+      throw new AppError(ErrorCodes.PAYMENT_NOT_FOUND, 404, "Payment not found", {
+        reason: "not_found_or_forbidden",
+      });
     }
     return reply.send({ data, meta: { request_id: request.id } });
   });

@@ -278,15 +278,16 @@
 
 Ниже перечислены дополнительные коды ошибок, которые используются в `docs/api/modules/payment-api.md` (частичный перечень).
 
-- `order_not_payable` — заказ не может быть оплачен в текущем статусе (HTTP 409; используется при `POST /payments`)
-- `payment_not_found` — платеж не найден или не принадлежит текущему клиенту (HTTP 404; используется при `GET /payments/{payment_id}` и `POST /payments/webhook/yookassa`)
-- `payment_create_failed` — не удалось создать платёж у провайдера или сохранить запись в БД (HTTP 500; используется при `POST /api/v1/payments`)
-- `payment_attempt_conflict` — обнаружено конфликтующее состояние попыток оплаты (HTTP 409; используется при `POST /payments`)
-- `payment_state_conflict` — состояние платежа противоречит допустимой модели (HTTP 409; используется при `POST /payments/webhook/yookassa`)
-- `unauthorized_webhook` — webhook не прошел проверку подлинности (HTTP 401; используется при `POST /payments/webhook/yookassa`)
-- `payment_provider_error` — ошибка взаимодействия с платежным провайдером (HTTP 502; используется при `POST /payments`)
-- `payment_provider_unavailable` — платежный сервис временно недоступен (HTTP 503; используется при `POST /payments`)
-- `item_not_available` — в заказе есть позиции, недоступные для оплаты на момент инициации платежа (HTTP 422; используется при `POST /payments`, см. `payment-api.md`)
+- `order_not_payable` — заказ не может быть оплачен в текущем статусе (HTTP 409; `POST /api/v1/payments`)
+- `payment_not_found` — платёж не найден или не принадлежит текущему клиенту (HTTP 404; `GET /api/v1/payments/{payment_id}`); либо по `external_payment_id` нет строки в `payments` после раннего сохранения webhook-события (HTTP 404; `POST /api/v1/payments/webhook/yookassa`)
+- `payment_create_failed` — HTTP 500 при `POST /api/v1/payments`: не настроены учётные данные YooKassa **или** сбой персистенции попытки в БД на этапе create (например, инвариант INSERT). **Не** используется для ответов самого API YooKassa с кодами 4xx/5xx — для них см. `payment_provider_error` / `payment_provider_unavailable`
+- `payment_attempt_conflict` — конфликтующее состояние попыток оплаты после re-read (HTTP 409; `POST /api/v1/payments`)
+- `payment_state_conflict` — недопустимый переход / иммутабельность финального статуса (HTTP 409; `POST /api/v1/payments/webhook/yookassa`)
+- `unauthorized_webhook` — webhook не прошёл проверку подлинности (HTTP 401; `POST /api/v1/payments/webhook/yookassa`)
+- `payment_provider_error` — провайдер ответил ошибкой клиента (HTTP 502; `POST /api/v1/payments`, после фиксации attempt в БД)
+- `payment_provider_unavailable` — провайдер ответил 5xx или запрос не удалось отнести к 4xx (HTTP 503; `POST /api/v1/payments`)
+- `internal_error` — HTTP 500: нарушены внутренние инварианты payment flow (например, рассинхрон client idempotency после upsert, отсутствие dedupe-строки webhook после early storage, отсутствие строки платежа после успешного commit create)
+- `item_not_available` — в заказе есть позиции, недоступные для оплаты (HTTP 422; зарезервировано в `payment-api.md`, в текущей реализации может не возвращаться)
 
 Ниже перечислены дополнительные коды ошибок, которые используются в `docs/api/modules/delivery-api.md` (частичный перечень).
 

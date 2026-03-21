@@ -188,8 +188,12 @@ export class PaymentWebhookService {
         throw new AppError(
           ErrorCodes.INTERNAL_ERROR,
           500,
-          "Webhook dedupe row missing",
-          { external_payment_id: externalId, provider_status: providerStatus },
+          "Webhook dedupe row missing after early storage",
+          {
+            reason: "webhook_dedupe_row_missing",
+            external_payment_id: externalId,
+            provider_status: providerStatus,
+          },
         );
       }
       if (eventState.processingStatus === "processed") {
@@ -199,7 +203,10 @@ export class PaymentWebhookService {
       // 5) find payment by external_payment_id
       const payment = await this.payments.findByExternalId(client, externalId);
       if (!payment) {
-        throw new AppError(ErrorCodes.PAYMENT_NOT_FOUND, 404, "Payment not found", {});
+        throw new AppError(ErrorCodes.PAYMENT_NOT_FOUND, 404, "Payment not found", {
+          reason: "no_payment_row_for_external_id",
+          external_payment_id: externalId,
+        });
       }
 
       // 6) determine actual/late attempt

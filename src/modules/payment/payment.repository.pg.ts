@@ -1,6 +1,8 @@
 import type { Pool, PoolClient } from "pg";
 import type { CreatePaymentRow, PaymentRepository } from "./payment.repository.js";
 import type { Payment } from "./payment.domain.js";
+import { AppError } from "../../shared/errors/app-error.js";
+import { ErrorCodes } from "../../shared/errors/error-codes.js";
 
 export class PaymentRepositoryPg implements PaymentRepository {
   private mapRow(row: {
@@ -324,7 +326,12 @@ export class PaymentRepositoryPg implements PaymentRepository {
     );
     const row = res.rows[0];
     if (!row) {
-      throw new Error("Failed to resolve payment_idempotency row after insert/select");
+      throw new AppError(
+        ErrorCodes.INTERNAL_ERROR,
+        500,
+        "Client idempotency invariant violated",
+        { reason: "idempotency_row_missing_after_upsert" },
+      );
     }
     return { paymentAttemptId: row.payment_attempt_id };
   }
@@ -405,7 +412,12 @@ export class PaymentRepositoryPg implements PaymentRepository {
     );
     const row = res.rows[0];
     if (!row) {
-      throw new Error("Failed to insert payment attempt");
+      throw new AppError(
+        ErrorCodes.PAYMENT_CREATE_FAILED,
+        500,
+        "Failed to persist payment attempt",
+        { reason: "insert_returned_no_row" },
+      );
     }
     return this.mapRow(row);
   }
