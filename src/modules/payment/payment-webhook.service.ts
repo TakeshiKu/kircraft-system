@@ -3,14 +3,18 @@ import { randomUUID } from "node:crypto";
 import { Buffer } from "node:buffer";
 import type { PaymentRepository } from "./payment.repository.js";
 import type { OrderRepository } from "../order/order.repository.js";
-import {
-  type PaymentInternalStatus,
-} from "./payment-state-machine.js";
+import { type PaymentInternalStatus } from "./payment-state-machine.js";
 import { withTransaction } from "../../shared/db/transaction.js";
 import { AppError } from "../../shared/errors/app-error.js";
 import { ErrorCodes } from "../../shared/errors/error-codes.js";
 import type { YooKassaWebhookObjectDto } from "./payment.dto.js";
 import type { Logger } from "../../shared/logger/logger.js";
+import { logPayment, PAYMENT_LOG_SCOPE } from "./payment-observability.js";
+
+function replayFailureReason(err: unknown): string {
+  if (err instanceof AppError) return err.code;
+  return "unexpected_error";
+}
 
 /**
  * Обработка POST /payments/webhook/yookassa.
@@ -37,11 +41,14 @@ export class PaymentWebhookService {
   async handleYooKassaNotification(
     rawBody: YooKassaWebhookObjectDto,
     headers?: Record<string, string | string[] | undefined>,
+    observability?: { request_id?: string },
   ): Promise<{ accepted: boolean }> {
     return this.processWebhook(rawBody, {
       headers,
       requireAuth: true,
       persistEvent: true,
+      log_mode: "http",
+      request_id: observability?.request_id,
     });
   }
 
@@ -51,28 +58,60 @@ export class PaymentWebhookService {
    */
   async replayPendingWebhookEventsForExternalPayment(
     externalPaymentId: string,
+    opts?: { request_id?: string },
   ): Promise<void> {
+    logPayment(this.log, "info", {
+      scope: PAYMENT_LOG_SCOPE.REPLAY,
+      event: "replay_started",
+      request_id: opts?.request_id,
+      external_payment_id: externalPaymentId,
+      details: { source: "by_external_payment_id" },
+    });
+
     const events = await this.payments.listPendingWebhookEventsByExternalPaymentId(
       this.pool,
       externalPaymentId,
     );
+
     for (const event of events) {
+      logPayment(this.log, "info", {
+        scope: PAYMENT_LOG_SCOPE.REPLAY,
+        event: "replay_event_processing",
+        request_id: opts?.request_id,
+        external_payment_id: externalPaymentId,
+        details: { provider_status: event.providerStatus },
+      });
       try {
         await this.processWebhook(event.payload as YooKassaWebhookObjectDto, {
           requireAuth: false,
           persistEvent: false,
+          log_mode: "replay",
+          request_id: opts?.request_id,
         });
       } catch (err) {
-        this.log?.error(
+        logPayment(
+          this.log,
+          "error",
           {
-            err,
-            externalPaymentId,
-            scope: "webhook_replay_by_external_id",
+            scope: PAYMENT_LOG_SCOPE.REPLAY,
+            event: "replay_event_failed",
+            request_id: opts?.request_id,
+            external_payment_id: externalPaymentId,
+            reason: replayFailureReason(err),
+            details: { provider_status: event.providerStatus },
           },
-          "replay pending webhook event failed; row stays pending for next sweep",
+          err,
         );
       }
     }
+
+    logPayment(this.log, "info", {
+      scope: PAYMENT_LOG_SCOPE.REPLAY,
+      event: "replay_completed",
+      request_id: opts?.request_id,
+      external_payment_id: externalPaymentId,
+      details: { source: "by_external_payment_id", events_seen: events.length },
+    });
   }
 
   /**
@@ -87,35 +126,80 @@ export class PaymentWebhookService {
   }): Promise<void> {
     const limit = options?.limit ?? 100;
     const maxBatches = options?.maxBatches ?? 20;
+    let batchesRun = 0;
+    let eventsProcessed = 0;
+
+    logPayment(this.log, "info", {
+      scope: PAYMENT_LOG_SCOPE.REPLAY,
+      event: "replay_started",
+      details: { source: "database_sweep", limit, max_batches: maxBatches },
+    });
+
+    const finish = (): void => {
+      logPayment(this.log, "info", {
+        scope: PAYMENT_LOG_SCOPE.REPLAY,
+        event: "replay_completed",
+        details: {
+          source: "database_sweep",
+          batches_run: batchesRun,
+          events_processed: eventsProcessed,
+        },
+      });
+    };
+
     for (let batch = 0; batch < maxBatches; batch++) {
       const rows = await this.payments.listPendingWebhookEvents(this.pool, {
         limit,
       });
       if (rows.length === 0) {
+        finish();
         return;
       }
+
+      batchesRun += 1;
+      logPayment(this.log, "info", {
+        scope: PAYMENT_LOG_SCOPE.REPLAY,
+        event: "replay_batch_started",
+        details: { batch_index: batch, batch_size: rows.length },
+      });
+
       for (const row of rows) {
+        logPayment(this.log, "info", {
+          scope: PAYMENT_LOG_SCOPE.REPLAY,
+          event: "replay_event_processing",
+          external_payment_id: row.externalPaymentId,
+          details: { provider_status: row.providerStatus },
+        });
         try {
           await this.processWebhook(row.payload as YooKassaWebhookObjectDto, {
             requireAuth: false,
             persistEvent: false,
+            log_mode: "replay",
           });
+          eventsProcessed += 1;
         } catch (err) {
-          this.log?.error(
+          logPayment(
+            this.log,
+            "error",
             {
-              err,
-              externalPaymentId: row.externalPaymentId,
-              providerStatus: row.providerStatus,
-              scope: "webhook_replay_db_sweep",
+              scope: PAYMENT_LOG_SCOPE.REPLAY,
+              event: "replay_event_failed",
+              external_payment_id: row.externalPaymentId,
+              reason: replayFailureReason(err),
+              details: { provider_status: row.providerStatus },
             },
-            "DB sweep replay failed; event remains pending",
+            err,
           );
         }
       }
+
       if (rows.length < limit) {
+        finish();
         return;
       }
     }
+
+    finish();
   }
 
   private async processWebhook(
@@ -124,8 +208,14 @@ export class PaymentWebhookService {
       headers?: Record<string, string | string[] | undefined>;
       requireAuth: boolean;
       persistEvent: boolean;
+      log_mode: "http" | "replay";
+      request_id?: string;
     },
   ): Promise<{ accepted: boolean }> {
+    const scope =
+      options.log_mode === "http" ? PAYMENT_LOG_SCOPE.WEBHOOK : PAYMENT_LOG_SCOPE.REPLAY;
+    const requestId = options.request_id;
+
     // 1) parse + validate payload
     const object = rawBody.object;
     const externalId = object?.id;
@@ -150,13 +240,32 @@ export class PaymentWebhookService {
       );
     }
 
+    if (options.log_mode === "http") {
+      logPayment(this.log, "info", {
+        scope: PAYMENT_LOG_SCOPE.WEBHOOK,
+        event: "webhook_received",
+        request_id: requestId,
+        order_id: orderId,
+        payment_attempt_id: attemptId,
+        external_payment_id: externalId,
+        details: { provider_status: providerStatus },
+      });
+    }
+
     // 2) auth check
     if (options.requireAuth) {
       const authHeaderRaw = options.headers?.authorization;
       const authHeader = Array.isArray(authHeaderRaw) ? authHeaderRaw[0] : authHeaderRaw;
-      // Technical limitation for current integration stage:
-      // webhook auth is strict Basic equality with configured shopId/secret.
       if (authHeader !== this.expectedAuthorizationHeader) {
+        logPayment(this.log, "warn", {
+          scope: PAYMENT_LOG_SCOPE.WEBHOOK,
+          event: "webhook_auth_failed",
+          request_id: requestId,
+          order_id: orderId,
+          payment_attempt_id: attemptId,
+          external_payment_id: externalId,
+          reason: "invalid_basic_credentials",
+        });
         throw new AppError(
           ErrorCodes.UNAUTHORIZED_WEBHOOK,
           401,
@@ -174,17 +283,37 @@ export class PaymentWebhookService {
         providerStatus,
         payload: rawBody as Record<string, unknown>,
       });
+      logPayment(this.log, "info", {
+        scope: PAYMENT_LOG_SCOPE.WEBHOOK,
+        event: "webhook_saved_early",
+        request_id: requestId,
+        order_id: orderId,
+        payment_attempt_id: attemptId,
+        external_payment_id: externalId,
+        details: { provider_status: providerStatus },
+      });
     }
 
     // 4..9) dedupe-consistent transaction
     return withTransaction(this.pool, async (client) => {
-      // 4) dedupe check (and lock) inside transaction
       const eventState = await this.payments.lockWebhookEventForUpdate(
         client,
         externalId,
         providerStatus,
       );
       if (eventState === null) {
+        if (options.log_mode === "http") {
+          logPayment(this.log, "error", {
+            scope: PAYMENT_LOG_SCOPE.WEBHOOK,
+            event: "webhook_dedupe_row_missing",
+            request_id: requestId,
+            order_id: orderId,
+            payment_attempt_id: attemptId,
+            external_payment_id: externalId,
+            reason: "dedupe_row_missing_after_persist",
+            details: { provider_status: providerStatus },
+          });
+        }
         throw new AppError(
           ErrorCodes.INTERNAL_ERROR,
           500,
@@ -197,48 +326,66 @@ export class PaymentWebhookService {
         );
       }
       if (eventState.processingStatus === "processed") {
+        if (options.log_mode === "http") {
+          logPayment(this.log, "info", {
+            scope: PAYMENT_LOG_SCOPE.WEBHOOK,
+            event: "webhook_duplicate_noop",
+            request_id: requestId,
+            order_id: orderId,
+            payment_attempt_id: attemptId,
+            external_payment_id: externalId,
+            details: { provider_status: providerStatus },
+          });
+        }
         return { accepted: true };
       }
 
-      // 5) find payment by external_payment_id
       const payment = await this.payments.findByExternalId(client, externalId);
       if (!payment) {
+        if (options.log_mode === "http") {
+          logPayment(this.log, "warn", {
+            scope: PAYMENT_LOG_SCOPE.WEBHOOK,
+            event: "webhook_payment_not_found",
+            request_id: requestId,
+            order_id: orderId,
+            payment_attempt_id: attemptId,
+            external_payment_id: externalId,
+            reason: "no_payment_row_for_external_id",
+            details: { provider_status: providerStatus },
+          });
+        }
         throw new AppError(ErrorCodes.PAYMENT_NOT_FOUND, 404, "Payment not found", {
           reason: "no_payment_row_for_external_id",
           external_payment_id: externalId,
         });
       }
 
-      // 6) determine actual/late attempt
       const actual = await this.payments.getActualAttemptForOrder(client, payment.orderId);
       const isLateAttempt = actual !== null && actual.paymentAttemptId !== attemptId;
 
       const mapped = this.mapProviderToInternal(providerStatus);
-      /**
-       * Late attempt (metadata.payment_attempt_id !== actual для заказа): не меняет business state
-       * заказа и не считается успешной актуальной оплатой. При provider succeeded фиксируем
-       * внутренний финал как canceled (контракт §4.6–4.7); provider_status остаётся фактическим.
-       */
       const effectiveInternalStatus: PaymentInternalStatus =
         isLateAttempt && mapped === "succeeded" ? "canceled" : mapped;
 
       if (isLateAttempt && mapped === "succeeded") {
-        this.log?.info(
-          {
-            scope: "webhook_late_attempt",
-            orderId: payment.orderId,
-            paymentId: payment.paymentId,
-            externalPaymentId: externalId,
-            webhookPaymentAttemptId: attemptId,
-            actualPaymentAttemptId: actual?.paymentAttemptId,
+        logPayment(this.log, "warn", {
+          scope,
+          event: "webhook_late_attempt",
+          request_id: requestId,
+          order_id: payment.orderId,
+          payment_id: payment.paymentId,
+          payment_attempt_id: attemptId,
+          external_payment_id: externalId,
+          reason: "late_succeeded_treated_as_canceled",
+          details: {
+            provider_status: providerStatus,
+            actual_payment_attempt_id: actual?.paymentAttemptId,
           },
-          "Late attempt: provider succeeded → internal canceled; order not updated",
-        );
+        });
       }
 
       const current = payment.status;
 
-      // 7) apply transition rules (including downgrade/final immutability)
       if (this.isFinal(current)) {
         if (current === effectiveInternalStatus) {
           await this.payments.markWebhookProcessed(
@@ -246,7 +393,37 @@ export class PaymentWebhookService {
             externalId,
             providerStatus,
           );
+          if (options.log_mode === "http") {
+            logPayment(this.log, "info", {
+              scope: PAYMENT_LOG_SCOPE.WEBHOOK,
+              event: "webhook_processed",
+              request_id: requestId,
+              order_id: payment.orderId,
+              payment_id: payment.paymentId,
+              payment_attempt_id: payment.paymentAttemptId,
+              external_payment_id: externalId,
+              status: current,
+              details: { provider_status: providerStatus, path: "final_idempotent" },
+            });
+          }
           return { accepted: true };
+        }
+        if (options.log_mode === "http") {
+          logPayment(this.log, "warn", {
+            scope: PAYMENT_LOG_SCOPE.WEBHOOK,
+            event: "webhook_state_conflict",
+            request_id: requestId,
+            order_id: payment.orderId,
+            payment_id: payment.paymentId,
+            payment_attempt_id: payment.paymentAttemptId,
+            external_payment_id: externalId,
+            reason: "immutable_final",
+            details: {
+              provider_status: providerStatus,
+              current_status: current,
+              incoming_status: effectiveInternalStatus,
+            },
+          });
         }
         throw new AppError(
           ErrorCodes.PAYMENT_STATE_CONFLICT,
@@ -257,6 +434,23 @@ export class PaymentWebhookService {
       }
 
       if (this.rank(effectiveInternalStatus) < this.rank(current)) {
+        if (options.log_mode === "http") {
+          logPayment(this.log, "warn", {
+            scope: PAYMENT_LOG_SCOPE.WEBHOOK,
+            event: "webhook_state_conflict",
+            request_id: requestId,
+            order_id: payment.orderId,
+            payment_id: payment.paymentId,
+            payment_attempt_id: payment.paymentAttemptId,
+            external_payment_id: externalId,
+            reason: "status_downgrade_not_allowed",
+            details: {
+              provider_status: providerStatus,
+              current_status: current,
+              incoming_status: effectiveInternalStatus,
+            },
+          });
+        }
         throw new AppError(
           ErrorCodes.PAYMENT_STATE_CONFLICT,
           409,
@@ -265,7 +459,6 @@ export class PaymentWebhookService {
         );
       }
 
-      // 8) transactional update payment + order
       await this.payments.lockOrderPayments(client, payment.orderId);
       await this.payments.updatePaymentFromProvider(client, {
         paymentId: payment.paymentId,
@@ -273,10 +466,22 @@ export class PaymentWebhookService {
         providerStatus,
         paidAt: effectiveInternalStatus === "succeeded" ? new Date() : null,
         source: "webhook",
-        ...(isLateAttempt && mapped === "succeeded"
-          ? { providerPaid: false }
-          : {}),
+        ...(isLateAttempt && mapped === "succeeded" ? { providerPaid: false } : {}),
       });
+
+      if (options.log_mode === "http") {
+        logPayment(this.log, "info", {
+          scope: PAYMENT_LOG_SCOPE.WEBHOOK,
+          event: "webhook_transition_applied",
+          request_id: requestId,
+          order_id: payment.orderId,
+          payment_id: payment.paymentId,
+          payment_attempt_id: payment.paymentAttemptId,
+          external_payment_id: externalId,
+          status: effectiveInternalStatus,
+          details: { provider_status: providerStatus },
+        });
+      }
 
       if (!isLateAttempt && effectiveInternalStatus === "succeeded") {
         await client.query(
@@ -290,14 +495,26 @@ export class PaymentWebhookService {
         );
       }
 
-      // 9) mark processed
       await this.payments.markWebhookProcessed(
         client,
         externalId,
         providerStatus,
       );
 
-      // 10) response
+      if (options.log_mode === "http") {
+        logPayment(this.log, "info", {
+          scope: PAYMENT_LOG_SCOPE.WEBHOOK,
+          event: "webhook_processed",
+          request_id: requestId,
+          order_id: payment.orderId,
+          payment_id: payment.paymentId,
+          payment_attempt_id: payment.paymentAttemptId,
+          external_payment_id: externalId,
+          status: effectiveInternalStatus,
+          details: { provider_status: providerStatus, path: "transition" },
+        });
+      }
+
       return { accepted: true };
     });
   }

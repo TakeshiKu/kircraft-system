@@ -29,6 +29,10 @@ import {
   PaymentWebhookService,
   registerPaymentRoutes,
 } from "./modules/payment/index.js";
+import {
+  logPayment,
+  PAYMENT_LOG_SCOPE,
+} from "./modules/payment/payment-observability.js";
 import { CdekService } from "./integrations/cdek/index.js";
 import {
   YooKassaHttpClient,
@@ -78,9 +82,10 @@ export function buildApp(config: AppConfig, log: Logger) {
     orders,
     ykService,
     config.yookassa.returnUrl,
-    async (externalPaymentId) => {
+    async (externalPaymentId, opts) => {
       await webhookService.replayPendingWebhookEventsForExternalPayment(
         externalPaymentId,
+        opts,
       );
     },
     log,
@@ -90,9 +95,15 @@ export function buildApp(config: AppConfig, log: Logger) {
     void webhookService
       .replayPendingWebhooksFromDatabase({ limit: 250, maxBatches: 20 })
       .catch((err: unknown) => {
-        log.error(
-          { err, scope: "webhook_replay_startup_sweep" },
-          "startup pending webhook replay sweep failed",
+        logPayment(
+          log,
+          "error",
+          {
+            scope: PAYMENT_LOG_SCOPE.REPLAY,
+            event: "replay_event_failed",
+            reason: "startup_database_sweep",
+          },
+          err,
         );
       });
   });

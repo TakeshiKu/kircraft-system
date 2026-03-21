@@ -58,6 +58,7 @@ export function registerPaymentRoutes(
       userId,
       idempotencyKey,
       { order_id: body.order_id.trim() },
+      { request_id: request.id },
     );
     return reply.code(httpStatus).send({
       data: detail,
@@ -89,6 +90,7 @@ export function registerPaymentRoutes(
     const data = await webhookService.handleYooKassaNotification(
       request.body as Record<string, unknown> as import("./payment.dto.js").YooKassaWebhookObjectDto,
       request.headers as Record<string, string | string[] | undefined>,
+      { request_id: request.id },
     );
     return reply.send({ data, meta: { request_id: request.id } });
   });
