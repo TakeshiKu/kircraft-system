@@ -168,9 +168,9 @@ Order API не отвечает за:
 ## 5. Endpoint overview
 
 Модуль включает следующие методы:
-- `POST /order` - создать черновик заказа (`draft`) без корзины (MVP)
-- `PATCH /order/delivery` - сохранить выбранный вариант доставки в заказ в статусе `draft`
-- `POST /orders` - создать заказ из активной корзины клиента
+- `POST /orders` - создать черновик заказа (`draft`) без корзины (MVP)
+- `PATCH /orders/{order_id}/delivery` - сохранить выбранный вариант доставки в заказ в статусе `draft`
+- `POST /orders/from-cart` - создать заказ из активной корзины клиента
 - `GET /orders` - получить список заказов текущего клиента
 - `GET /orders/{order_id}` - получить информацию по конкретному заказу
 - `POST /orders/{order_id}/cancel` - отменить заказ текущего клиента в допустимом статусе
@@ -208,11 +208,41 @@ Order API не отвечает за:
 
 ## 7. Контракты методов
 
-### 7.1 Создание заказа
+### 7.0 Создание черновика заказа (MVP)
 
 #### Метод и путь
 
-`POST /orders`
+`POST /orders` (полный путь: `POST /api/v1/orders`)
+
+#### Назначение
+
+Создаёт пустой заказ в статусе `draft` без привязки к корзине.
+
+#### Request
+
+Body отсутствует.
+
+#### Response 201
+
+```json
+{
+  "data": {
+    "order_id": "uuid",
+    "status": "draft"
+  },
+  "meta": {
+    "request_id": "uuid"
+  }
+}
+```
+
+---
+
+### 7.1 Создание заказа из корзины
+
+#### Метод и путь
+
+`POST /orders/from-cart` (полный путь: `POST /api/v1/orders/from-cart`)
 
 #### Назначение
 
@@ -321,7 +351,7 @@ Body отсутствует.
 
 #### Метод и путь
 
-`PATCH /order/delivery` (полный путь: `PATCH /api/v1/order/delivery`)
+`PATCH /orders/{order_id}/delivery` (полный путь: `PATCH /api/v1/orders/:order_id/delivery`)
 
 #### Назначение
 
@@ -331,7 +361,6 @@ Body отсутствует.
 
 ```json
 {
-  "order_id": "uuid",
   "delivery_option": {
     "pickup_point_id": "string",
     "pickup_point_name": "string",
@@ -346,7 +375,8 @@ Body отсутствует.
 
 #### Правила request
 
-- все поля обязательны
+- `order_id` передаётся в пути (`:order_id`), в теле не дублируется
+- все поля `delivery_option` обязательны
 - `delivery_price`, `delivery_eta_min_days`, `delivery_eta_max_days` — целые числа ≥ 0
 - остальные поля — непустые строки (после trim)
 

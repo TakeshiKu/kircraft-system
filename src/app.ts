@@ -109,7 +109,7 @@ export function buildApp(config: AppConfig, log: Logger) {
   });
 
   const app = Fastify({
-    logger: log,
+    logger: true,
     genReqId: () => newRequestId(),
   });
 

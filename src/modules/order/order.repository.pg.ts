@@ -3,6 +3,7 @@ import type {
   OrderRepository,
   OrderDeliveryUpdatePayload,
   OrderRowForDelivery,
+  OrderSnapshotForPayment,
   CancelOrderForCustomerResult,
 } from "./order.repository.js";
 import type { Order, OrderItem } from "./order.domain.js";
@@ -374,6 +375,47 @@ export class OrderRepositoryPg implements OrderRepository {
       customerId: row.customer_id,
       status: row.status,
       totalPrice: Number.isFinite(totalPrice) ? totalPrice : 0,
+    };
+  }
+
+  async findOrderForPayment(
+    client: Pool | PoolClient,
+    orderId: string,
+  ): Promise<OrderSnapshotForPayment | null> {
+    const res = await client.query<{
+      customer_id: string;
+      status: string;
+      total_price: string | number;
+      items_total: string | number;
+      delivery_price: string | number;
+      delivery_provider: string | null;
+      delivery_type: string | null;
+    }>(
+      `SELECT customer_id,
+              status,
+              total_price,
+              items_total,
+              delivery_price,
+              delivery_provider,
+              delivery_type
+       FROM orders
+       WHERE order_id = $1`,
+      [orderId],
+    );
+    const row = res.rows[0];
+    if (!row) return null;
+    const num = (v: string | number) => {
+      const n = typeof v === "string" ? Number(v) : v;
+      return Number.isFinite(n) ? Math.trunc(n) : 0;
+    };
+    return {
+      customerId: row.customer_id,
+      status: row.status,
+      totalPrice: num(row.total_price),
+      itemsTotal: num(row.items_total),
+      deliveryPrice: num(row.delivery_price),
+      deliveryProvider: row.delivery_provider,
+      deliveryType: row.delivery_type,
     };
   }
 

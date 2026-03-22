@@ -85,9 +85,12 @@ database/migrations/
 | `POST /delivery/calculate` | `delivery.handler` | `DeliveryService` | `CartRepository`, `CheckoutDeliveryRepository`, `CdekService` |
 | `POST /delivery/select` | `delivery.handler` | `DeliveryService` | то же |
 | `GET /delivery/current` | `delivery.handler` | `DeliveryService` | то же |
-| `POST /orders` | `order.handler` | `OrderService` | `OrderRepository`, `CartRepository`, `CheckoutDeliveryRepository` (+ транзакция) |
+| `POST /api/v1/orders` | `order.handler` | `OrderService.createDraft` | `OrderRepository` |
+| `PATCH /api/v1/orders/:order_id/delivery` | `order.handler` | `OrderService.setDelivery` | `OrderRepository` |
+| `POST /api/v1/orders/from-cart` | `order.handler` | `OrderService` | `OrderRepository`, `CartRepository`, `CheckoutDeliveryRepository` (+ транзакция) |
 | `GET /orders`, `GET /orders/:id`, `POST …/cancel` | `order.handler` | `OrderService` | `OrderRepository` |
-| `POST /api/v1/payments` | `payment.handler` | `PaymentService.create` | `PaymentRepository`, `OrderRepository`, `YooKassaService` |
+| `POST /api/v1/orders/:order_id/payments` | `payment.handler` | `PaymentService.create` | `PaymentRepository`, `OrderRepository`, `YooKassaService` |
+| `POST /api/v1/payments` | `payment.handler` | `PaymentService.createOrReturnPayment` | `PaymentRepository`, `OrderRepository`, `YooKassaService` |
 | `GET /api/v1/payments/:id` | `payment.handler` | `PaymentService` | `PaymentRepository` |
 | `POST /api/v1/payments/webhook/yookassa` | `payment.handler` | `PaymentWebhookService` | `PaymentRepository`, `OrderRepository` |
 

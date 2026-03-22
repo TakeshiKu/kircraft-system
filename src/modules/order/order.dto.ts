@@ -44,10 +44,14 @@ function nonNegInt(v: unknown, field: string): number {
 }
 
 /**
- * PATCH /api/v1/order/delivery — тело запроса.
- * При ошибке — AppError(VALIDATION_ERROR, 400).
+ * PATCH /api/v1/orders/:order_id/delivery — тело запроса (только delivery_option).
+ * order_id берётся из path; при ошибке — AppError(VALIDATION_ERROR, 400).
  */
-export function parseSetDeliveryBody(body: unknown): SetDeliveryBodyDto {
+export function parseSetDeliveryBody(
+  body: unknown,
+  orderIdFromPath: string,
+): SetDeliveryBodyDto {
+  const order_id = nonEmptyString(orderIdFromPath, "order_id");
   if (body === null || typeof body !== "object") {
     throw new AppError(
       ErrorCodes.VALIDATION_ERROR,
@@ -57,7 +61,6 @@ export function parseSetDeliveryBody(body: unknown): SetDeliveryBodyDto {
     );
   }
   const b = body as Record<string, unknown>;
-  const order_id = nonEmptyString(b.order_id, "order_id");
   const opt = b.delivery_option;
   if (opt === null || typeof opt !== "object") {
     throw new AppError(

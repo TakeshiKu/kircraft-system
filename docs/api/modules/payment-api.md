@@ -189,6 +189,7 @@ Payment API не отвечает за:
 ## 5. Endpoint overview
 
 Модуль включает следующие методы (префикс API: `/api/v1`):
+- `POST /api/v1/orders/{order_id}/payments` — создать платёж YooKassa для заказа в статусе `draft` (checkout-flow; без client idempotency; всегда новая попытка)
 - `POST /api/v1/payments` — создать новую попытку оплаты или вернуть актуальную существующую попытку (create-or-return)
 - `GET /api/v1/payments/{payment_id}` — получить состояние внутренней записи платежа
 - `POST /api/v1/payments/webhook/yookassa` — принять webhook-уведомление от YooKassa и применить допустимые переходы
@@ -196,6 +197,42 @@ Payment API не отвечает за:
 ---
 
 ## 6. Контракты методов
+
+### 6.0 Платёж для черновика заказа (checkout-flow)
+
+#### Метод и путь
+
+`POST /api/v1/orders/{order_id}/payments`
+
+#### Назначение
+
+Создаёт новую попытку оплаты в YooKassa для заказа в статусе `draft` с заполненной доставкой. Не использует заголовок `Idempotency-Key` и не выполняет create-or-return: при каждом успешном вызове создаётся новая попытка (после отмены предыдущих нефинальных попыток для заказа в БД).
+
+#### Request body
+
+```json
+{}
+```
+
+Тело может быть пустым объектом; идентификатор заказа передаётся только в пути (`order_id`).
+
+#### Response 200
+
+```json
+{
+  "data": {
+    "payment_id": "uuid",
+    "confirmation_url": "https://yookassa.ru/..."
+  },
+  "meta": {
+    "request_id": "uuid"
+  }
+}
+```
+
+Подробные коды ошибок см. в `docs/api/errors.md` (`order_not_ready_for_payment`, `payment_invalid_amount`, `payment_create_failed` и др.).
+
+---
 
 ### 6.1 Создание или возврат попытки оплаты
 

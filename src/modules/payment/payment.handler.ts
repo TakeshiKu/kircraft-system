@@ -21,6 +21,7 @@ function readIdempotencyKey(
 }
 
 /**
+ * POST /api/v1/orders/:order_id/payments — платёж YooKassa для черновика (checkout-flow)
  * POST /api/v1/payments      — create-or-return (YooKassa)
  * GET  /api/v1/payments/:payment_id
  * POST /api/v1/payments/webhook/yookassa  (без requireAuth — своя проверка подписи)
@@ -31,6 +32,26 @@ export function registerPaymentRoutes(
   webhookService: PaymentWebhookService,
 ): void {
   const p = "/api/v1/payments";
+
+  app.post("/api/v1/orders/:order_id/payments", async (request, reply) => {
+    const { userId } = requireAuth(request);
+    const { order_id: rawOrderId } = request.params as { order_id: string };
+    const order_id =
+      typeof rawOrderId === "string" ? rawOrderId.trim() : "";
+    if (order_id.length === 0) {
+      throw new AppError(
+        ErrorCodes.INVALID_REQUEST,
+        400,
+        "Invalid order_id",
+        { field: "order_id", reason: "required_non_empty_string" },
+      );
+    }
+    const data = await paymentService.create(userId, order_id);
+    return reply.code(200).send({
+      data,
+      meta: { request_id: request.id },
+    });
+  });
 
   app.post(p, async (request, reply) => {
     const { userId } = requireAuth(request);

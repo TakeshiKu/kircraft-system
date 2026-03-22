@@ -40,7 +40,7 @@ export class OrderService {
     private readonly log: Logger,
   ) {}
 
-  /** POST /api/v1/order — новый черновик без проверок существующих. */
+  /** POST /api/v1/orders — новый черновик без проверок существующих. */
   async createDraft(userId: string): Promise<OrderDraftResponse> {
     const orderId = randomUUID();
     const customerId = userId;
@@ -74,7 +74,7 @@ export class OrderService {
   }
 
   /**
-   * PATCH /api/v1/order/delivery — сохранить выбранную доставку в черновик заказа (без CDEK и без пересчёта).
+   * PATCH /api/v1/orders/:order_id/delivery — сохранить выбранную доставку в черновик заказа (без CDEK и без пересчёта).
    */
   async setDelivery(userId: string, input: SetDeliveryBodyDto): Promise<{ order_id: string }> {
     const orderId = input.order_id;

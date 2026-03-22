@@ -269,6 +269,7 @@
 - `internal_error` — внутренняя ошибка сервера (HTTP 500)
 - `order_not_found` — заказ не найден или не принадлежит текущему пользователю (HTTP 404)
 - `order_invalid_state` — операция недопустима для текущего статуса заказа (HTTP 409; например `PATCH /order/delivery` не в статусе `draft`)
+- `order_not_ready_for_payment` — заказ в `draft`, но не заполнены поля, необходимые для оплаты (например доставка) (HTTP 409; `POST /api/v1/orders/:order_id/payments`)
 - `order_update_failed` — не удалось сохранить изменения заказа в БД (HTTP 500)
 - `customer_not_found` — клиент не найден (HTTP 404; используется при `POST /order` для создания черновика заказа)
 - `order_cannot_be_cancelled` — попытка отмены в недопустимом статусе (HTTP 409; устаревшее имя в части текстов модулей)
@@ -281,7 +282,8 @@
 
 - `order_not_payable` — заказ не может быть оплачен в текущем статусе (HTTP 409; `POST /api/v1/payments`)
 - `payment_not_found` — платёж не найден или не принадлежит текущему клиенту (HTTP 404; `GET /api/v1/payments/{payment_id}`); либо по `external_payment_id` нет строки в `payments` после раннего сохранения webhook-события (HTTP 404; `POST /api/v1/payments/webhook/yookassa`)
-- `payment_create_failed` — HTTP 500 при `POST /api/v1/payments`: не настроены учётные данные YooKassa **или** сбой персистенции попытки в БД на этапе create (например, инвариант INSERT). **Не** используется для ответов самого API YooKassa с кодами 4xx/5xx — для них см. `payment_provider_error` / `payment_provider_unavailable`
+- `payment_create_failed` — HTTP 500 при `POST /api/v1/payments` или `POST /api/v1/orders/:order_id/payments`: не настроены учётные данные YooKassa **или** сбой персистенции попытки в БД на этапе create (например, инвариант INSERT), **или** ошибка вызова YooKassa в checkout-flow. Для `POST /api/v1/payments` после фиксации attempt в БД ответы API YooKassa с кодами 4xx/5xx — см. `payment_provider_error` / `payment_provider_unavailable`
+- `payment_invalid_amount` — сумма к оплате невалидна или равна нулю (HTTP 409; `POST /api/v1/orders/:order_id/payments`)
 - `payment_attempt_conflict` — конфликтующее состояние попыток оплаты после re-read (HTTP 409; `POST /api/v1/payments`)
 - `payment_state_conflict` — недопустимый переход / иммутабельность финального статуса (HTTP 409; `POST /api/v1/payments/webhook/yookassa`)
 - `unauthorized_webhook` — webhook не прошёл проверку подлинности (HTTP 401; `POST /api/v1/payments/webhook/yookassa`)

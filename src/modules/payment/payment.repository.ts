@@ -76,7 +76,19 @@ export interface PaymentRepository {
   ): Promise<Payment>;
 
   /** Создать запись платежа (после создания платежа в YooKassa). */
-  createPayment(client: Pool, data: CreatePaymentRow): Promise<void>;
+  createPayment(
+    client: Pool | PoolClient,
+    data: CreatePaymentRow,
+  ): Promise<void>;
+
+  /**
+   * Отменить все нефинальные попытки заказа (created/pending), чтобы освободить слот
+   * под новую строку (partial unique index по order_id).
+   */
+  cancelNonFinalPaymentAttemptsForOrder(
+    client: PoolClient,
+    orderId: string,
+  ): Promise<void>;
 
   /**
    * После успешного create в YooKassa: created → pending, внешний id, ссылка, provider_status.

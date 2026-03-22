@@ -513,6 +513,117 @@ export class PaymentService {
   }
 
   /**
+   * POST /api/v1/orders/:order_id/payments — создание платежа YooKassa для черновика заказа (всегда новая попытка, без client idempotency).
+   */
+  async create(
+    userId: string,
+    orderId: string,
+  ): Promise<{ payment_id: string; confirmation_url: string }> {
+    const row = await this.orders.findOrderForPayment(this.pool, orderId);
+    if (!row || row.customerId !== userId) {
+      throw new AppError(ErrorCodes.ORDER_NOT_FOUND, 404, "Order not found", {});
+    }
+    if (row.status !== "draft") {
+      throw new AppError(
+        ErrorCodes.ORDER_INVALID_STATE,
+        409,
+        "Order is not in draft state",
+        { status: row.status },
+      );
+    }
+    const dp = row.deliveryProvider?.trim() ?? "";
+    const dt = row.deliveryType?.trim() ?? "";
+    if (!dp || !dt) {
+      throw new AppError(
+        ErrorCodes.ORDER_NOT_READY_FOR_PAYMENT,
+        409,
+        "Order is not ready for payment",
+        {},
+      );
+    }
+
+    const amountMinor = Math.trunc(
+      row.totalPrice > 0 ? row.totalPrice : row.itemsTotal + row.deliveryPrice,
+    );
+    if (!Number.isFinite(amountMinor) || amountMinor < 0) {
+      throw new AppError(
+        ErrorCodes.PAYMENT_INVALID_AMOUNT,
+        409,
+        "Invalid payment amount",
+        {},
+      );
+    }
+    if (amountMinor === 0) {
+      throw new AppError(
+        ErrorCodes.PAYMENT_INVALID_AMOUNT,
+        409,
+        "Invalid payment amount",
+        { reason: "zero_not_allowed" },
+      );
+    }
+
+    const paymentId = randomUUID();
+    const paymentAttemptId = randomUUID();
+    const idempotenceKey = randomUUID();
+    const currency = "RUB";
+    const amountValue = (amountMinor / 100).toFixed(2);
+    const description = `Order ${orderId}`;
+
+    let yk: { externalId: string; confirmationUrl: string; status: string };
+    try {
+      yk = await this.yookassa.createRedirectPayment({
+        idempotenceKey,
+        amountValue,
+        currency,
+        returnUrl: this.yookassaReturnUrl,
+        description,
+        metadata: { order_id: orderId, payment_attempt_id: paymentAttemptId },
+      });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      throw new AppError(ErrorCodes.PAYMENT_CREATE_FAILED, 500, "Failed to create payment", {
+        reason: message,
+      });
+    }
+
+    try {
+      await withTransaction(this.pool, async (client) => {
+        await this.payments.lockOrderPayments(client, orderId);
+        await this.payments.cancelNonFinalPaymentAttemptsForOrder(client, orderId);
+        await this.payments.createPayment(client, {
+          paymentId,
+          orderId,
+          customerId: userId,
+          amountMinor,
+          currency,
+          status: "pending",
+          providerStatus: yk.status,
+          externalPaymentId: yk.externalId,
+          idempotenceKey,
+          paymentAttemptId,
+          confirmationUrl: yk.confirmationUrl,
+          returnUrl: this.yookassaReturnUrl,
+          description,
+          confirmationType: "redirect",
+        });
+      });
+    } catch (e) {
+      if (e instanceof AppError) throw e;
+      const message = e instanceof Error ? e.message : String(e);
+      throw new AppError(ErrorCodes.PAYMENT_CREATE_FAILED, 500, "Failed to persist payment", {
+        reason: message,
+      });
+    }
+
+    this.log?.info({ userId, orderId, paymentId }, "payment created");
+
+    return {
+      payment_id: paymentId,
+      confirmation_url: yk.confirmationUrl,
+    };
+  }
+
+  /**
    * GET /api/v1/payments/{payment_id}: только чтение БД, без YooKassa / webhook / replay / побочных эффектов.
    */
   async getPayment(

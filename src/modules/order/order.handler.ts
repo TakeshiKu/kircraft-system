@@ -7,9 +7,9 @@ import { ErrorCodes } from "../../shared/errors/error-codes.js";
 import { parseOrderListPagination } from "./order-list.dto.js";
 
 /**
- * POST   /api/v1/order  — черновик заказа
- * PATCH  /api/v1/order/delivery — выбранная доставка в черновик
- * POST   /api/v1/orders
+ * POST   /api/v1/orders  — черновик заказа
+ * PATCH  /api/v1/orders/:order_id/delivery — выбранная доставка в черновик
+ * POST   /api/v1/orders/from-cart
  * GET    /api/v1/orders
  * GET    /api/v1/orders/:order_id
  * POST   /api/v1/orders/:order_id/cancel
@@ -20,9 +20,20 @@ export function registerOrderRoutes(
 ): void {
   const p = "/api/v1/orders";
 
-  app.patch("/api/v1/order/delivery", async (request, reply) => {
+  app.patch(`${p}/:order_id/delivery`, async (request, reply) => {
     const { userId } = requireAuth(request);
-    const body = parseSetDeliveryBody(request.body);
+    const { order_id: rawOrderId } = request.params as { order_id: string };
+    const order_id =
+      typeof rawOrderId === "string" ? rawOrderId.trim() : "";
+    if (order_id.length === 0) {
+      throw new AppError(
+        ErrorCodes.INVALID_REQUEST,
+        400,
+        "Invalid order_id",
+        { field: "order_id", reason: "required_non_empty_string" },
+      );
+    }
+    const body = parseSetDeliveryBody(request.body, order_id);
     const data = await orderService.setDelivery(userId, body);
     return reply.code(200).send({
       data,
@@ -30,7 +41,7 @@ export function registerOrderRoutes(
     });
   });
 
-  app.post("/api/v1/order", async (request, reply) => {
+  app.post("/api/v1/orders", async (request, reply) => {
     const { userId } = requireAuth(request);
     const data = await orderService.createDraft(userId);
     return reply.code(201).send({
@@ -39,7 +50,7 @@ export function registerOrderRoutes(
     });
   });
 
-  app.post(p, async (request, reply) => {
+  app.post(`${p}/from-cart`, async (request, reply) => {
     const { userId } = requireAuth(request);
     const order = await orderService.createFromActiveCart(userId);
     return reply.send({ data: order, meta: { request_id: request.id } });

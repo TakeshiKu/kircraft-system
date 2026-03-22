@@ -17,6 +17,17 @@ export type OrderRowForDelivery = {
   totalPrice: number;
 };
 
+/** Поля заказа для оплаты черновика (POST /api/v1/orders/:order_id/payments): суммы в минорных единицах. */
+export type OrderSnapshotForPayment = {
+  customerId: string;
+  status: string;
+  totalPrice: number;
+  itemsTotal: number;
+  deliveryPrice: number;
+  deliveryProvider: string | null;
+  deliveryType: string | null;
+};
+
 /** Поля доставки для UPDATE orders (значения уже провалидированы) */
 export type OrderDeliveryUpdatePayload = {
   deliveryProvider: string;
@@ -102,6 +113,14 @@ export interface OrderRepository {
     client: Pool | PoolClient,
     orderId: string,
   ): Promise<OrderRowForDelivery | null>;
+
+  /**
+   * Снимок заказа для расчёта суммы и проверки готовности к оплате (без побочных эффектов).
+   */
+  findOrderForPayment(
+    client: Pool | PoolClient,
+    orderId: string,
+  ): Promise<OrderSnapshotForPayment | null>;
 
   /**
    * Обновляет выбранную доставку на заказе. Возвращает число затронутых строк.

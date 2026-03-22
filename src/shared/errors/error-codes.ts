@@ -12,6 +12,8 @@ export const ErrorCodes = {
   ORDER_UPDATE_FAILED: "order_update_failed",
   PAYMENT_NOT_FOUND: "payment_not_found",
   PAYMENT_CREATE_FAILED: "payment_create_failed",
+  /** Сумма к оплате 0 или невалидна для провайдера. */
+  PAYMENT_INVALID_AMOUNT: "payment_invalid_amount",
   CART_NOT_ACTIVE: "cart_not_active",
   CART_ALREADY_CONVERTED: "cart_already_converted",
   ITEM_NOT_AVAILABLE: "item_not_available",
@@ -22,6 +24,8 @@ export const ErrorCodes = {
   ORDER_NOT_CANCELLABLE: "order_not_cancellable",
   ORDER_CREATE_FAILED: "order_create_failed",
   ORDER_NOT_PAYABLE: "order_not_payable",
+  /** Заказ в draft, но не заполнены обязательные поля для оплаты (доставка и т.д.). */
+  ORDER_NOT_READY_FOR_PAYMENT: "order_not_ready_for_payment",
   PAYMENT_ATTEMPT_CONFLICT: "payment_attempt_conflict",
   PAYMENT_STATE_CONFLICT: "payment_state_conflict",
   UNAUTHORIZED_WEBHOOK: "unauthorized_webhook",

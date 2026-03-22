@@ -1,4 +1,4 @@
--- Выбранная доставка на заказе (MVP): колонки на `orders` для PATCH /api/v1/order/delivery
+-- Выбранная доставка на заказе (MVP): колонки на `orders` для PATCH /api/v1/orders/:order_id/delivery
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_provider varchar;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_type varchar;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivery_currency varchar;

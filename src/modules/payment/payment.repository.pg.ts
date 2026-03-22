@@ -422,8 +422,11 @@ export class PaymentRepositoryPg implements PaymentRepository {
     return this.mapRow(row);
   }
 
-  async createPayment(pool: Pool, data: CreatePaymentRow): Promise<void> {
-    await pool.query(
+  async createPayment(
+    client: Pool | PoolClient,
+    data: CreatePaymentRow,
+  ): Promise<void> {
+    await client.query(
       `INSERT INTO payments (
         payment_id,
         order_id,
@@ -462,6 +465,23 @@ export class PaymentRepositoryPg implements PaymentRepository {
         data.confirmationUrl,
         data.paymentAttemptId,
       ],
+    );
+  }
+
+  async cancelNonFinalPaymentAttemptsForOrder(
+    c: PoolClient,
+    orderId: string,
+  ): Promise<void> {
+    await c.query(
+      `UPDATE payments
+       SET
+         internal_status = 'canceled',
+         status = 'canceled',
+         updated_at = NOW(),
+         last_status_source = 'replaced_by_new_payment'
+       WHERE order_id = $1
+         AND internal_status IN ('created', 'pending')`,
+      [orderId],
     );
   }
 
