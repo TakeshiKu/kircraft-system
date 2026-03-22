@@ -20,6 +20,25 @@ Database
 ↓  
 Интеграции (оплата, уведомления)
 
+## Backend API (HTTP)
+
+**Base URL** (локально по умолчанию):
+
+```
+http://localhost:3000/api/v1
+```
+
+**Checkout flow** (черновик заказа → доставка → оплата):
+
+```
+POST   /api/v1/delivery/calculate
+POST   /api/v1/orders
+PATCH  /api/v1/orders/{order_id}/delivery
+POST   /api/v1/orders/{order_id}/payments
+```
+
+Полный URL запроса: Base URL + путь (например `http://localhost:3000/api/v1/orders`).
+
 ## Репозитории проекта
 
 - UI прототип Telegram-бота  

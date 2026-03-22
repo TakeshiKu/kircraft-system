@@ -167,13 +167,13 @@ Order API не отвечает за:
 
 ## 5. Endpoint overview
 
-Модуль включает следующие методы:
-- `POST /orders` - создать черновик заказа (`draft`) без корзины (MVP)
-- `PATCH /orders/{order_id}/delivery` - сохранить выбранный вариант доставки в заказ в статусе `draft`
-- `POST /orders/from-cart` - создать заказ из активной корзины клиента
-- `GET /orders` - получить список заказов текущего клиента
-- `GET /orders/{order_id}` - получить информацию по конкретному заказу
-- `POST /orders/{order_id}/cancel` - отменить заказ текущего клиента в допустимом статусе
+Модуль включает следующие методы (префикс API: `/api/v1`):
+- `POST /api/v1/orders` — создать черновик заказа (`draft`) без корзины (MVP)
+- `PATCH /api/v1/orders/{order_id}/delivery` — сохранить выбранный вариант доставки в заказ в статусе `draft`
+- `POST /api/v1/orders/from-cart` — создать заказ из активной корзины клиента
+- `GET /api/v1/orders` — получить список заказов текущего клиента
+- `GET /api/v1/orders/{order_id}` — получить информацию по конкретному заказу
+- `POST /api/v1/orders/{order_id}/cancel` — отменить заказ текущего клиента в допустимом статусе
 
 ---
 
@@ -212,7 +212,7 @@ Order API не отвечает за:
 
 #### Метод и путь
 
-`POST /orders` (полный путь: `POST /api/v1/orders`)
+`POST /api/v1/orders`
 
 #### Назначение
 
@@ -242,7 +242,7 @@ Body отсутствует.
 
 #### Метод и путь
 
-`POST /orders/from-cart` (полный путь: `POST /api/v1/orders/from-cart`)
+`POST /api/v1/orders/from-cart`
 
 #### Назначение
 
@@ -351,7 +351,7 @@ Body отсутствует.
 
 #### Метод и путь
 
-`PATCH /orders/{order_id}/delivery` (полный путь: `PATCH /api/v1/orders/:order_id/delivery`)
+`PATCH /api/v1/orders/{order_id}/delivery`
 
 #### Назначение
 
@@ -375,7 +375,7 @@ Body отсутствует.
 
 #### Правила request
 
-- `order_id` передаётся в пути (`:order_id`), в теле не дублируется
+- `order_id` передаётся в пути (`{order_id}`), в теле не дублируется
 - все поля `delivery_option` обязательны
 - `delivery_price`, `delivery_eta_min_days`, `delivery_eta_max_days` — целые числа ≥ 0
 - остальные поля — непустые строки (после trim)
@@ -407,7 +407,7 @@ Body отсутствует.
 
 #### Метод и путь
 
-`GET /orders`
+`GET /api/v1/orders`
 
 #### Назначение
 
@@ -476,7 +476,7 @@ Body отсутствует.
 
 #### Метод и путь
 
-`GET /orders/{order_id}`
+`GET /api/v1/orders/{order_id}`
 
 #### Назначение
 
@@ -563,7 +563,7 @@ Body отсутствует.
 
 #### Метод и путь
 
-`POST /orders/{order_id}/cancel`
+`POST /api/v1/orders/{order_id}/cancel`
 
 #### Назначение
 
