@@ -469,7 +469,7 @@ COMMENT ON COLUMN "orders"."phone_snapshot" IS 'Телефон клиента н
 
 COMMENT ON COLUMN "orders"."email_snapshot" IS 'Email клиента на момент оформления заказа (необязательное поле)';
 
-COMMENT ON COLUMN "orders"."status" IS 'Статус заказа: created/awaiting_payment/needs_clarification/paid/in_progress/shipped/cancelled/rejected';
+COMMENT ON COLUMN "orders"."status" IS 'Статус заказа: draft/created/awaiting_payment/needs_clarification/paid/in_progress/shipped/cancelled/rejected. draft — официальный стартовый технический статус MVP checkout flow';
 
 COMMENT ON COLUMN "orders"."city" IS 'Город доставки (snapshot)';
 

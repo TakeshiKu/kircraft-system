@@ -363,6 +363,36 @@ OrderItemSelectedValue → OrderItem
 OrderItemSelectedValue → ProductParameter  
 OrderItemSelectedValue → ProductParameterValue
 
+### OrderDelivery
+
+Историческая запись попытки выбора доставки для заказа.
+
+Источником истины для текущей доставки заказа являются
+денормализованные поля сущности Order:
+
+- delivery_provider
+- delivery_type
+- delivery_currency
+- pickup_point_id
+- pickup_point_name
+- pickup_point_address
+- delivery_eta_min_days
+- delivery_eta_max_days
+- delivery_price
+- city
+
+Сущность OrderDelivery используется как multi-attempt log
+для трассировки последовательных выборов доставки клиентом
+до подтверждения заказа.
+
+OrderDelivery не является обязательной для основного flow
+оформления заказа: запись создаётся при наличии нескольких
+выборов доставки для одного заказа.
+
+Связи:
+
+OrderDelivery → Order (N:1)
+
 ---
 
 ## Внутренние пользователи

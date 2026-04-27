@@ -11,9 +11,10 @@
 
 | Статус | Описание |
 |------|------|
-| `created` | Технический промежуточный статус. В клиентском checkout заказ создается сразу в `awaiting_payment` и `created` не используется как стартовый статус. |
+| `draft` | Стартовый технический статус MVP checkout flow. Заказ создаётся в `draft` через `POST /api/v1/orders`, далее к нему привязывается доставка и контактные данные. После валидации и подтверждения заказ переходит в `awaiting_payment`. |
+| `created` | Технический промежуточный статус. В клиентском checkout заказ создаётся сразу в `awaiting_payment` и `created` не используется как стартовый статус. |
 | `needs_clarification` | Требуется уточнение от клиента (например цвет, размер или персонализация изделия). |
-| `awaiting_payment` | Первый статус после создания заказа в клиентском checkout. Заказ готов к оплате и ожидает оплату. |
+| `awaiting_payment` | Заказ готов к оплате и ожидает оплату. |
 | `paid` | Оплата подтверждена платежной системой. |
 | `in_progress` | Заказ в работе (принят в производство). |
 | `shipped` | Заказ отправлен клиенту. |
@@ -51,9 +52,10 @@ awaiting_payment
 ## Отмена клиентом
 
 Клиент может отменить заказ только в статусах:
-`awaiting_payment` и `needs_clarification`.
+`draft`, `awaiting_payment` и `needs_clarification`.
 
 ```
+draft → cancelled
 needs_clarification → cancelled
 awaiting_payment → cancelled
 ```
@@ -68,6 +70,8 @@ awaiting_payment → cancelled
 
 В рамках текущей логики проекта допустимы следующие переходы:
 
+- `draft -> awaiting_payment`
+- `draft -> cancelled`
 - `awaiting_payment -> paid`
 - `awaiting_payment -> needs_clarification`
 - `awaiting_payment -> cancelled`
@@ -84,6 +88,8 @@ awaiting_payment → cancelled
 
 # Инициаторы переходов
 
+- `draft -> awaiting_payment` — система (после привязки доставки, фиксации snapshot данных заказа и подтверждения клиентом)
+- `draft -> cancelled` — клиент (отмена заказа на стадии черновика)
 - `awaiting_payment -> paid` — система (по подтвержденному результату оплаты от платежного провайдера: webhook/результат оплаты)
 - `awaiting_payment -> cancelled` — клиент (отмена заказа); система (автоотмена по таймауту оплаты)
 - `awaiting_payment -> needs_clarification` — мастер/админ
