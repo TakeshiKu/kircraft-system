@@ -10,6 +10,7 @@ workspace "Kircraft System" "Архитектура системы Kircraft" {
         yookassa = softwareSystem "YooKassa" "Платежный сервис."
         cdek = softwareSystem "CDEK" "Сервис расчета доставки и получения ПВЗ."
         n8n = softwareSystem "n8n" "Платформа автоматизации и оркестрации интеграционных сценариев."
+        llmProvider = softwareSystem "LLM Provider" "Внешний провайдер языковой модели для генерации и анализа текста. Конкретный вендор не привязан архитектурно."
 
         kircraft = softwareSystem "Kircraft System" "Система управления каталогом, заказами, оплатой и доставкой." {
 
@@ -27,6 +28,7 @@ workspace "Kircraft System" "Архитектура системы Kircraft" {
                 customerModule = component "Customer Module" "Клиенты, внешние аккаунты и идентификация по каналам." "Module"
                 orderManagementModule = component "Order Management Module" "Управление заказами со стороны администратора и мастера." "Module"
                 notificationModule = component "Notification Module" "Формирование событий и правил уведомлений." "Module"
+                aiAssistantModule = component "AI Assistant Module" "Генерация черновиков описаний товаров и summary переписки заказов через LLM. Логирует промпты и ответы. Работает с human-in-the-loop." "Module"
                 persistenceLayer = component "Persistence Layer" "Доступ к PostgreSQL." "Infrastructure"
                 mediaStorageAdapter = component "Media Storage Adapter" "Доступ к Object Storage." "Infrastructure"
                 loggingAuditAdapter = component "Logging & Audit Adapter" "Логирование запросов, ошибок, интеграций и доменных событий." "Infrastructure"
@@ -56,7 +58,9 @@ workspace "Kircraft System" "Архитектура системы Kircraft" {
         backendApi -> yookassa "Создает платежи и получает статусы оплаты" "HTTPS / Webhook"
         backendApi -> cdek "Рассчитывает доставку и получает ПВЗ" "HTTPS / JSON"
         backendApi -> n8n "Запускает и принимает интеграционные сценарии" "HTTPS / Webhook"
+        backendApi -> llmProvider "Запрашивает генерацию и анализ текста для AI-сценариев" "HTTPS / API"
         n8n -> backendApi "Вызывает API и webhook" "HTTPS / Webhook"
+        n8n -> llmProvider "Запрашивает персонализированное содержимое уведомлений" "HTTPS / API"
 
         cartModule -> orderModule "Передает данные корзины"
         orderModule -> deliveryModule "Использует данные доставки"
@@ -69,6 +73,12 @@ workspace "Kircraft System" "Архитектура системы Kircraft" {
         orderModule -> notificationModule "Публикует события заказа"
         paymentModule -> notificationModule "Публикует события оплаты"
         orderManagementModule -> notificationModule "Публикует события статусов"
+
+        catalogModule -> aiAssistantModule "Запрашивает черновик описания товара"
+        orderManagementModule -> aiAssistantModule "Запрашивает summary переписки заказа"
+        aiAssistantModule -> llmProvider "Вызывает LLM для генерации и анализа текста" "HTTPS / API"
+        aiAssistantModule -> persistenceLayer "Читает данные заказов и переписки, сохраняет логи AI-вызовов"
+        aiAssistantModule -> loggingAuditAdapter "Логирует промпты, ответы LLM и факт human-in-the-loop подтверждений"
 
         orderModule -> loggingAuditAdapter "Логирует события заказа и ошибки"
         paymentModule -> loggingAuditAdapter "Логирует события оплаты и ошибки"
@@ -105,6 +115,7 @@ workspace "Kircraft System" "Архитектура системы Kircraft" {
             include yookassa
             include cdek
             include n8n
+            include llmProvider
             autolayout lr
         }
 
@@ -123,6 +134,7 @@ workspace "Kircraft System" "Архитектура системы Kircraft" {
             include yookassa
             include cdek
             include n8n
+            include llmProvider
             autolayout lr
         }
 
@@ -135,6 +147,7 @@ workspace "Kircraft System" "Архитектура системы Kircraft" {
             include customerModule
             include orderManagementModule
             include notificationModule
+            include aiAssistantModule
             include persistenceLayer
             include mediaStorageAdapter
             include loggingAuditAdapter
@@ -143,6 +156,7 @@ workspace "Kircraft System" "Архитектура системы Kircraft" {
             include yookassa
             include cdek
             include n8n
+            include llmProvider
             autolayout lr
         }
 
